@@ -1,12 +1,21 @@
 <script setup lang="ts">
 /**
- * BookingDialog.vue — create an ad-hoc booking for a single day, with a
- * live conflict check that hard-disables "Book" while any conflict exists
- * (per ADR 0002 — there is no submit-anyway path).
+ * BookingDialog.vue — create either an ad-hoc booking for a single day or a
+ * standing weekly recurring slot, with a live conflict check that
+ * hard-disables "Book" while any conflict exists (per ADR 0002 — there is
+ * no submit-anyway path). The two modes share one dialog and one Fra/Til
+ * time range; recurring mode additionally asks for an optional end date
+ * and a week parity.
  */
 import { computed, ref, watch } from 'vue'
-import type { CalendarBand, CalendarOccurrence } from '@/types/calendar'
+import type { CalendarBand, CalendarOccurrence, WeekParity } from '@/types/calendar'
 import { BookingConflictError, createBooking, fetchConflicts } from '@/api/bookings'
+import {
+  RecurringSlotConflictError,
+  createRecurringSlot,
+  fetchRecurringSlotConflicts,
+  type RecurringSlotConflict,
+} from '@/api/recurringSlots'
 
 interface Props {
   bands: CalendarBand[]
@@ -20,7 +29,27 @@ const props = defineProps<Props>()
 const emit = defineEmits<{
   close: []
   created: [occurrence: CalendarOccurrence]
+  'recurring-slot-created': []
 }>()
+
+type Mode = 'adhoc' | 'recurring'
+
+const WEEK_PARITY_OPTIONS: { value: WeekParity; label: string }[] = [
+  { value: 'all', label: 'Hver uge' },
+  { value: 'odd', label: 'Ulige uger' },
+  { value: 'even', label: 'Lige uger' },
+]
+
+const DAY_NAMES = [
+  '',
+  'mandage',
+  'tirsdage',
+  'onsdage',
+  'torsdage',
+  'fredage',
+  'lørdage',
+  'søndage',
+]
 
 function pad(n: number): string {
   return String(n).padStart(2, '0')
@@ -50,15 +79,20 @@ const sortedBands = computed(() =>
   }),
 )
 
+const mode = ref<Mode>('adhoc')
 const bandId = ref<number>(props.ownBandIds[0] ?? props.bands[0]?.id ?? 0)
 const date = ref(toDateParam(props.initialStart))
+const endDate = ref('')
 const fromTime = ref(toTimeParam(props.initialStart))
 const toTime = ref(toTimeParam(props.initialEnd))
+const weekParity = ref<WeekParity>('all')
 
 /** A native `date` + two `time` inputs can never span midnight by construction; this only catches Fra >= Til. */
 const isValidRange = computed(
   () => fromTime.value !== '' && toTime.value !== '' && fromTime.value < toTime.value,
 )
+
+const isValidEndDate = computed(() => endDate.value === '' || endDate.value >= date.value)
 
 function buildDateTime(time: string): Date | null {
   const dateMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date.value)
@@ -70,7 +104,7 @@ function buildDateTime(time: string): Date | null {
   return new Date(y!, m! - 1, d, h, min)
 }
 
-const conflicts = ref<CalendarOccurrence[]>([])
+const conflicts = ref<(CalendarOccurrence | RecurringSlotConflict)[]>([])
 const checking = ref(false)
 const submitting = ref(false)
 const submitError = ref<string | null>(null)
@@ -78,18 +112,11 @@ const submitError = ref<string | null>(null)
 let latestCheckId = 0
 
 watch(
-  [date, fromTime, toTime],
+  [mode, date, endDate, fromTime, toTime, weekParity],
   async () => {
     submitError.value = null
 
-    if (!isValidRange.value) {
-      conflicts.value = []
-      return
-    }
-
-    const start = buildDateTime(fromTime.value)
-    const end = buildDateTime(toTime.value)
-    if (!start || !end) {
+    if (!isValidRange.value || (mode.value === 'recurring' && !isValidEndDate.value)) {
       conflicts.value = []
       return
     }
@@ -98,9 +125,28 @@ watch(
     checking.value = true
 
     try {
-      const result = await fetchConflicts(toNaiveDateTime(start), toNaiveDateTime(end))
-      if (checkId !== latestCheckId) return
-      conflicts.value = result
+      if (mode.value === 'adhoc') {
+        const start = buildDateTime(fromTime.value)
+        const end = buildDateTime(toTime.value)
+        if (!start || !end) {
+          conflicts.value = []
+          return
+        }
+
+        const result = await fetchConflicts(toNaiveDateTime(start), toNaiveDateTime(end))
+        if (checkId !== latestCheckId) return
+        conflicts.value = result
+      } else {
+        const result = await fetchRecurringSlotConflicts({
+          startDate: date.value,
+          endDate: endDate.value === '' ? null : endDate.value,
+          startTime: fromTime.value,
+          endTime: toTime.value,
+          weekParity: weekParity.value,
+        })
+        if (checkId !== latestCheckId) return
+        conflicts.value = result
+      }
     } catch (e) {
       if (checkId !== latestCheckId) return
       submitError.value = e instanceof Error ? e.message : String(e)
@@ -115,35 +161,53 @@ const canSubmit = computed(
   () =>
     bandId.value > 0 &&
     isValidRange.value &&
+    (mode.value === 'adhoc' || isValidEndDate.value) &&
     conflicts.value.length === 0 &&
     !checking.value &&
     !submitting.value,
 )
 
-function conflictLabel(c: CalendarOccurrence): string {
+function conflictLabel(c: CalendarOccurrence | RecurringSlotConflict): string {
   const band = c.band_name ?? 'Ukendt band'
+
+  if (c.source === 'recurring_pattern') {
+    return `${band}, hver ${DAY_NAMES[c.day_of_week]} ${c.start_time.slice(0, 5)}–${c.end_time.slice(0, 5)}`
+  }
+
   return `${band} ${c.start_time.slice(11, 16)}–${c.end_time.slice(11, 16)}`
 }
 
 async function submit(): Promise<void> {
   if (!canSubmit.value) return
 
-  const start = buildDateTime(fromTime.value)
-  const end = buildDateTime(toTime.value)
-  if (!start || !end) return
-
   submitting.value = true
   submitError.value = null
 
   try {
-    const occurrence = await createBooking({
-      bandId: bandId.value,
-      startTime: toNaiveDateTime(start),
-      endTime: toNaiveDateTime(end),
-    })
-    emit('created', occurrence)
+    if (mode.value === 'adhoc') {
+      const start = buildDateTime(fromTime.value)
+      const end = buildDateTime(toTime.value)
+      if (!start || !end) return
+
+      const occurrence = await createBooking({
+        bandId: bandId.value,
+        startTime: toNaiveDateTime(start),
+        endTime: toNaiveDateTime(end),
+      })
+      emit('created', occurrence)
+    } else {
+      await createRecurringSlot({
+        bandId: bandId.value,
+        startDate: date.value,
+        endDate: endDate.value === '' ? null : endDate.value,
+        startTime: fromTime.value,
+        endTime: toTime.value,
+        weekParity: weekParity.value,
+      })
+      emit('recurring-slot-created')
+    }
   } catch (e) {
-    if (e instanceof BookingConflictError) {
+    if (e instanceof BookingConflictError || e instanceof RecurringSlotConflictError) {
       conflicts.value = e.conflicts
     }
     submitError.value = e instanceof Error ? e.message : String(e)
@@ -162,6 +226,25 @@ async function submit(): Promise<void> {
       </header>
 
       <form class="dialog-body" @submit.prevent="submit">
+        <div class="mode-toggle" role="radiogroup" aria-label="Bookingtype">
+          <button
+            type="button"
+            :class="{ active: mode === 'adhoc' }"
+            :aria-pressed="mode === 'adhoc'"
+            @click="mode = 'adhoc'"
+          >
+            Engangsbooking
+          </button>
+          <button
+            type="button"
+            :class="{ active: mode === 'recurring' }"
+            :aria-pressed="mode === 'recurring'"
+            @click="mode = 'recurring'"
+          >
+            Ugentlig gentagelse
+          </button>
+        </div>
+
         <label class="field">
           <span>Band</span>
           <select v-model.number="bandId" required>
@@ -177,8 +260,22 @@ async function submit(): Promise<void> {
         </label>
 
         <label class="field">
-          <span>Dato</span>
+          <span>{{ mode === 'recurring' ? 'Startdato' : 'Dato' }}</span>
           <input v-model="date" type="date" required />
+        </label>
+
+        <label v-if="mode === 'recurring'" class="field">
+          <span>Slutdato (valgfri)</span>
+          <input v-model="endDate" type="date" :min="date" />
+        </label>
+
+        <label v-if="mode === 'recurring'" class="field">
+          <span>Gentagelse</span>
+          <select v-model="weekParity" required>
+            <option v-for="opt in WEEK_PARITY_OPTIONS" :key="opt.value" :value="opt.value">
+              {{ opt.label }}
+            </option>
+          </select>
         </label>
 
         <div class="time-row">
@@ -193,6 +290,9 @@ async function submit(): Promise<void> {
         </div>
 
         <p v-if="!isValidRange" class="hint" role="alert">Til skal være efter Fra.</p>
+        <p v-else-if="mode === 'recurring' && !isValidEndDate" class="hint" role="alert">
+          Slutdato skal være efter startdato.
+        </p>
         <p v-else-if="checking" class="hint">Tjekker ledighed…</p>
 
         <div v-if="conflicts.length > 0" class="conflicts" role="alert">
@@ -207,7 +307,7 @@ async function submit(): Promise<void> {
         <footer class="dialog-actions">
           <button type="button" class="ghost" @click="emit('close')">Annuller</button>
           <button type="submit" :disabled="!canSubmit">
-            {{ submitting ? 'Booker…' : 'Book' }}
+            {{ submitting ? 'Gemmer…' : 'Book' }}
           </button>
         </footer>
       </form>
@@ -261,6 +361,23 @@ async function submit(): Promise<void> {
   flex-direction: column;
   gap: 10px;
   padding: 14px;
+}
+
+.mode-toggle {
+  display: flex;
+  gap: 6px;
+}
+
+.mode-toggle button {
+  flex: 1;
+  font-size: 12px;
+  padding: 6px 4px;
+}
+
+.mode-toggle button.active {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: #fff;
 }
 
 .field {

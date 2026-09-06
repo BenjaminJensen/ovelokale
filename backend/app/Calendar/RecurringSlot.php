@@ -25,4 +25,22 @@ final readonly class RecurringSlot
         public ?string $endDate,
     ) {
     }
+
+    /**
+     * @return array<string, int|string|null>
+     */
+    public function toArray(): array
+    {
+        return [
+            'id' => $this->id,
+            'band_id' => $this->bandId,
+            'band_name' => $this->bandName,
+            'day_of_week' => $this->dayOfWeek,
+            'start_time' => $this->startTime,
+            'end_time' => $this->endTime,
+            'week_parity' => $this->weekParity->value,
+            'start_date' => $this->startDate,
+            'end_date' => $this->endDate,
+        ];
+    }
 }
