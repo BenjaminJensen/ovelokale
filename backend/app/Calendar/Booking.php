@@ -14,11 +14,12 @@ final readonly class Booking
         public DateTimeImmutable $startTime,
         public DateTimeImmutable $endTime,
         public int $bookedByUserId,
+        public ?string $bookedByUserName,
     ) {
     }
 
     /**
-     * @return array<string, int|string>
+     * @return array<string, int|string|null>
      */
     public function toArray(): array
     {
@@ -29,6 +30,7 @@ final readonly class Booking
             'start_time' => $this->startTime->format('Y-m-d H:i:s'),
             'end_time' => $this->endTime->format('Y-m-d H:i:s'),
             'booked_by_user_id' => $this->bookedByUserId,
+            'booked_by_user_name' => $this->bookedByUserName,
         ];
     }
 }

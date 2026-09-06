@@ -28,6 +28,18 @@ try {
     $pdo->exec('DELETE FROM bookings');
     $pdo->exec('DELETE FROM recurring_slots');
 
+    $insertUser = $pdo->prepare(
+        'INSERT IGNORE INTO users (id, name, email) VALUES (:id, :name, :email)'
+    );
+
+    foreach ($userIds as $userId) {
+        $insertUser->execute([
+            ':id' => $userId,
+            ':name' => "Test User {$userId}",
+            ':email' => "test-user-{$userId}@ovelokale.test",
+        ]);
+    }
+
     $daysInMonth = (int) (new DateTimeImmutable(sprintf('%04d-%02d-01', $year, $month)))->format('t');
 
     $insertBooking = $pdo->prepare(
