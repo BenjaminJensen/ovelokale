@@ -1,0 +1,5 @@
+# Recurring slots are bounded by a start date and an optional end date
+
+`recurring_slots` originally had no date bounds at all — just day-of-week, time range, and week parity, applying forever in both directions. That meant a slot created today would retroactively "exist" in every past week too, since `CalendarLookup` resolves occurrences for any requested week with no floor. We're adding a required `start_date` (the date picked when the booking is created, whose weekday becomes `day_of_week`) and an optional `end_date` (blank means indefinite), so a recurring slot only ever appears in weeks it was actually meant to cover.
+
+We considered leaving it unbounded, since a pure weekly pattern is conceptually simpler and nobody was expected to browse the calendar far into the past. We rejected that: it's a real correctness bug waiting to surface (a slot appearing to have existed before it did), and retrofitting bounds after real recurring-slot data exists would be a much messier migration than adding it now.
