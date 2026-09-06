@@ -10,6 +10,8 @@ final readonly class RecurringSlot
      * @param int $dayOfWeek ISO-8601: 1 (Monday) .. 7 (Sunday)
      * @param string $startTime "H:i:s"
      * @param string $endTime "H:i:s"
+     * @param string $startDate "Y-m-d"
+     * @param ?string $endDate "Y-m-d"
      */
     public function __construct(
         public int $id,
@@ -19,6 +21,8 @@ final readonly class RecurringSlot
         public string $endTime,
         public WeekParity $weekParity,
         public ?string $bandName,
+        public string $startDate,
+        public ?string $endDate,
     ) {
     }
 }

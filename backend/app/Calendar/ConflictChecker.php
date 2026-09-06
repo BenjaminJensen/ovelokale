@@ -39,6 +39,7 @@ final readonly class ConflictChecker
         }
 
         $date = $startTime->setTime(0, 0);
+        $dateString = $date->format('Y-m-d');
         $dayOfWeek = (int) $date->format('N');
         $weekParity = WeekParity::forIsoWeekNumber((int) $date->format('W'));
 
@@ -47,8 +48,12 @@ final readonly class ConflictChecker
                 continue;
             }
 
-            $slotStart = new DateTimeImmutable($date->format('Y-m-d') . ' ' . $slot->startTime);
-            $slotEnd = new DateTimeImmutable($date->format('Y-m-d') . ' ' . $slot->endTime);
+            if ($dateString < $slot->startDate || ($slot->endDate !== null && $dateString > $slot->endDate)) {
+                continue;
+            }
+
+            $slotStart = new DateTimeImmutable($dateString . ' ' . $slot->startTime);
+            $slotEnd = new DateTimeImmutable($dateString . ' ' . $slot->endTime);
 
             if ($slotStart < $endTime && $slotEnd > $startTime) {
                 $conflicts[] = [
@@ -57,7 +62,7 @@ final readonly class ConflictChecker
                     'band_id' => $slot->bandId,
                     'band_name' => $slot->bandName,
                     'day_of_week' => $slot->dayOfWeek,
-                    'date' => $date->format('Y-m-d'),
+                    'date' => $dateString,
                     'start_time' => $slotStart->format('Y-m-d H:i:s'),
                     'end_time' => $slotEnd->format('Y-m-d H:i:s'),
                     'week_parity' => $slot->weekParity->value,

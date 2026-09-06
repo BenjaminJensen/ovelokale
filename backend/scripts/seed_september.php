@@ -8,8 +8,9 @@ require __DIR__ . '/../app/bootstrap.php';
  * Dev-only seed script. Clears `bookings` and `recurring_slots`, then inserts
  * random test data for September of the given year (default: current year):
  * ad-hoc bookings dated across the month, plus a handful of recurring slots
- * (day-of-week + parity patterns, not date-bound, so they surface whenever
- * the calendar is queried for a September week).
+ * (day-of-week + parity patterns, started at the beginning of that year with
+ * no end date, so they surface whenever the calendar is queried for a
+ * September week of that year).
  *
  * Usage: docker compose exec web php scripts/seed_september.php [year]
  */
@@ -118,8 +119,8 @@ try {
     }
 
     $insertSlot = $pdo->prepare(
-        'INSERT INTO recurring_slots (band_id, day_of_week, start_time, end_time, week_parity)
-         VALUES (:band_id, :day_of_week, :start_time, :end_time, :week_parity)'
+        'INSERT INTO recurring_slots (band_id, day_of_week, start_time, end_time, week_parity, start_date)
+         VALUES (:band_id, :day_of_week, :start_time, :end_time, :week_parity, :start_date)'
     );
 
     $slotTarget = 8;
@@ -151,6 +152,7 @@ try {
             ':start_time' => sprintf('%02d:00:00', $startHour),
             ':end_time' => sprintf('%02d:00:00', $endHour),
             ':week_parity' => $weekParities[array_rand($weekParities)],
+            ':start_date' => sprintf('%04d-01-01', $year),
         ]);
 
         $slotsInserted++;
