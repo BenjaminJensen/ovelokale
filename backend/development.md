@@ -84,6 +84,9 @@ Routes are wired up in `public_html/index.php`. Existing examples:
 - `GET /api/health` — `{"status":"ok"}`, proves the PHP container is up
 - `GET /api/db-check` — runs `SELECT VERSION()` via PDO, proves the DB connection
 - `GET /api/test-mail` — sends a test email through PHPMailer to Mailhog
+- `GET /api/calendar?week_start=YYYY-MM-DD[&band_id=N]` — merges ad-hoc
+  `bookings` with parity-matching `recurring_slots` for the Mon-Sun week
+  starting on `week_start`; see `app/Calendar/` and `app/Http/CalendarController.php`
 
 New application logic belongs in `app/` (autoloaded under the `App\`
 namespace) and is required/included from the front controller.
@@ -99,6 +102,21 @@ real SMTP credentials in production is a config change only.
 
 MySQL 8.0, accessed via PDO. Browse it at http://localhost:8081
 (phpMyAdmin), logging in with the `DB_USER`/`DB_PASSWORD` from `.env`.
+
+There's no migration tool (plain PHP, no framework) — schema lives as plain
+SQL in `docker/mysql/init/`, which MySQL runs automatically, in filename
+order, only when the `db_data` volume is first created. Adding a new `.sql`
+file there does nothing for an already-initialized local database; apply it
+by hand instead:
+
+```
+docker compose exec -T db mysql -u"$DB_USER" -p"$DB_PASSWORD" "$DB_DATABASE" < docker/mysql/init/00N_your_file.sql
+```
+
+For a fresh clone (or to rebuild local data from scratch), `docker compose
+down -v && docker compose up -d` picks up every init file automatically. In
+production (simply.com), run the same `.sql` files by hand once, e.g. via
+phpMyAdmin or `mysql` over SSH — there's no automated migration step.
 
 ## Before deploying
 
