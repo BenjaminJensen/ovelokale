@@ -6,11 +6,61 @@ namespace App\Calendar;
 
 use DateTimeImmutable;
 use PDO;
+use RuntimeException;
 
 final readonly class BookingRepository
 {
     public function __construct(private PDO $pdo)
     {
+    }
+
+    public function create(
+        int $bandId,
+        DateTimeImmutable $startTime,
+        DateTimeImmutable $endTime,
+        int $bookedByUserId,
+    ): Booking {
+        $statement = $this->pdo->prepare(
+            'INSERT INTO bookings (band_id, start_time, end_time, booked_by_user_id)
+             VALUES (:band_id, :start_time, :end_time, :booked_by_user_id)'
+        );
+        $statement->bindValue(':band_id', $bandId, PDO::PARAM_INT);
+        $statement->bindValue(':start_time', $startTime->format('Y-m-d H:i:s'));
+        $statement->bindValue(':end_time', $endTime->format('Y-m-d H:i:s'));
+        $statement->bindValue(':booked_by_user_id', $bookedByUserId, PDO::PARAM_INT);
+        $statement->execute();
+
+        $booking = $this->findById((int) $this->pdo->lastInsertId());
+
+        if ($booking === null) {
+            throw new RuntimeException('Booking not found immediately after insert.');
+        }
+
+        return $booking;
+    }
+
+    public function findById(int $id): ?Booking
+    {
+        $sql = 'SELECT bookings.id, bookings.band_id, bookings.start_time, bookings.end_time,
+                       bookings.booked_by_user_id, users.name AS booked_by_user_name,
+                       bands.name AS band_name
+                FROM bookings
+                LEFT JOIN users ON users.id = bookings.booked_by_user_id
+                LEFT JOIN bands ON bands.id = bookings.band_id
+                WHERE bookings.id = :id';
+
+        $statement = $this->pdo->prepare($sql);
+        $statement->bindValue(':id', $id, PDO::PARAM_INT);
+        $statement->execute();
+
+        /** @var array{id: string, band_id: string, start_time: string, end_time: string, booked_by_user_id: string, booked_by_user_name: ?string, band_name: ?string}|false $row */
+        $row = $statement->fetch(PDO::FETCH_ASSOC);
+
+        if ($row === false) {
+            return null;
+        }
+
+        return self::fromRow($row);
     }
 
     /**

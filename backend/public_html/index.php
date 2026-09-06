@@ -52,6 +52,26 @@ match ($path) {
         echo json_encode($result['body']);
     })(),
 
+    '/api/bookings' => (function () {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            http_response_code(405);
+            echo json_encode(['error' => 'Method not allowed']);
+
+            return;
+        }
+
+        $body = json_decode((string) file_get_contents('php://input'), true);
+        $result = App\Http\BookingController::store(is_array($body) ? $body : []);
+        http_response_code($result['status']);
+        echo json_encode($result['body']);
+    })(),
+
+    '/api/bookings/conflicts' => (function () {
+        $result = App\Http\BookingController::conflicts($_GET);
+        http_response_code($result['status']);
+        echo json_encode($result['body']);
+    })(),
+
     default => (function () {
         http_response_code(404);
         echo json_encode(['error' => 'Not found']);

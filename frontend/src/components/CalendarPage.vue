@@ -1,14 +1,18 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import RehearsalCalendar from '@/components/RehearsalCalendar.vue'
+import BookingDialog from '@/components/BookingDialog.vue'
 import { fetchCalendarWeek } from '@/api/calendar'
 import { fetchBands } from '@/api/bands'
 import { mondaysInRange, toDateParam } from '@/utils/weeks'
+import { CURRENT_USER_ID } from '@/currentUser'
 import type { CalendarBand, CalendarBooking, CalendarOccurrence } from '@/types/calendar'
 
 const bookings = ref<CalendarBooking[]>([])
 const bands = ref<CalendarBand[]>([])
+const ownBandIds = ref<number[]>([])
 const error = ref<string | null>(null)
+const dialogRange = ref<{ start: Date; end: Date } | null>(null)
 
 onMounted(async () => {
   try {
@@ -18,6 +22,13 @@ onMounted(async () => {
     // to function — fall back to the "Booked" label rather than surfacing a
     // misleading "Could not load the calendar" error.
     console.error('Could not load bands:', e)
+  }
+
+  try {
+    ownBandIds.value = (await fetchBands({ userId: CURRENT_USER_ID })).map((b) => b.id)
+  } catch (e) {
+    // Only affects which bands are bolded in the booking dialog.
+    console.error("Could not load the current user's bands:", e)
   }
 })
 
@@ -67,12 +78,40 @@ async function handleRangeChange({ from, to }: { from: Date; to: Date }): Promis
     error.value = e instanceof Error ? e.message : String(e)
   }
 }
+
+function handleCreate({ start, end }: { start: Date; end: Date }): void {
+  dialogRange.value = { start, end }
+}
+
+function closeDialog(): void {
+  dialogRange.value = null
+}
+
+function handleCreated(occurrence: CalendarOccurrence): void {
+  const booking = toCalendarBooking(occurrence)
+  bookings.value = [...bookings.value.filter((b) => b.id !== booking.id), booking]
+  dialogRange.value = null
+}
 </script>
 
 <template>
   <div>
     <p v-if="error" role="alert" class="calendar-error">Could not load the calendar: {{ error }}</p>
-    <RehearsalCalendar :bookings="bookings" :bands="bands" @range-change="handleRangeChange" />
+    <RehearsalCalendar
+      :bookings="bookings"
+      :bands="bands"
+      @range-change="handleRangeChange"
+      @create="handleCreate"
+    />
+    <BookingDialog
+      v-if="dialogRange"
+      :bands="bands"
+      :own-band-ids="ownBandIds"
+      :initial-start="dialogRange.start"
+      :initial-end="dialogRange.end"
+      @close="closeDialog"
+      @created="handleCreated"
+    />
   </div>
 </template>
 

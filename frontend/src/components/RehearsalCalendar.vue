@@ -23,7 +23,7 @@ const props = withDefaults(defineProps<Props>(), {
   bookings: () => [],
   bands: () => [],
   locale: 'da-DK',
-  dayStartHour: 8,
+  dayStartHour: 0,
   dayEndHour: 24,
   slotMinutes: 60,
   initialView: 'month',
