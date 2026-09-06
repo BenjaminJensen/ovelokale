@@ -17,6 +17,7 @@ test('merges ad-hoc bookings and matching recurring slots into one sorted list',
             startTime: new DateTimeImmutable('2026-09-09 19:00:00'),
             endTime: new DateTimeImmutable('2026-09-09 21:00:00'),
             bookedByUserId: 5,
+            bookedByUserName: 'Jane Doe',
         ),
     ];
 
