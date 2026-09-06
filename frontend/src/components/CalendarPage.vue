@@ -35,6 +35,9 @@ onMounted(async () => {
 /** Guards against a slower, stale fetch (e.g. from a wider month view) overwriting a newer one. */
 let latestRequestId = 0
 
+/** The most recently requested range, re-used to refetch after a recurring slot is created. */
+let lastRange: { from: Date; to: Date } | null = null
+
 function occurrenceId(occurrence: CalendarOccurrence): string {
   return occurrence.source === 'ad_hoc'
     ? `ad_hoc:${occurrence.id}`
@@ -56,6 +59,7 @@ function toCalendarBooking(occurrence: CalendarOccurrence): CalendarBooking {
 }
 
 async function handleRangeChange({ from, to }: { from: Date; to: Date }): Promise<void> {
+  lastRange = { from, to }
   const requestId = ++latestRequestId
   const weekStarts = mondaysInRange(from, to).map(toDateParam)
 
@@ -92,6 +96,16 @@ function handleCreated(occurrence: CalendarOccurrence): void {
   bookings.value = [...bookings.value.filter((b) => b.id !== booking.id), booking]
   dialogRange.value = null
 }
+
+/**
+ * A new recurring slot can add occurrences across every visible week (not
+ * just one dated occurrence like an ad-hoc booking), so instead of
+ * synthesizing one CalendarBooking we just refetch the visible range.
+ */
+function handleRecurringSlotCreated(): void {
+  dialogRange.value = null
+  if (lastRange) void handleRangeChange(lastRange)
+}
 </script>
 
 <template>
@@ -111,6 +125,7 @@ function handleCreated(occurrence: CalendarOccurrence): void {
       :initial-end="dialogRange.end"
       @close="closeDialog"
       @created="handleCreated"
+      @recurring-slot-created="handleRecurringSlotCreated"
     />
   </div>
 </template>

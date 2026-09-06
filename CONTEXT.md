@@ -9,7 +9,7 @@ A one-off reservation of the room for a specific date and time range. Stored in 
 _Avoid_: One-time booking, single booking
 
 **Recurring slot**:
-A standing weekly reservation defined by day-of-week, time range, and week parity, with no end date — it repeats indefinitely until deleted. Stored in `recurring_slots`.
+A standing weekly reservation defined by day-of-week, time range, and week parity, bounded by a required start date and an optional end date (blank means it repeats indefinitely — see ADR 0001). Stored in `recurring_slots`.
 _Avoid_: Recurring booking, repeating booking
 
 **Week parity**:

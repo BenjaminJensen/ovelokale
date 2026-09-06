@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Calendar\ConflictChecker;
+use App\Calendar\WeekParity;
 
 beforeEach(function () {
     db()->exec("INSERT INTO users (id, name, email) VALUES (7, 'Jane Doe', 'jane@example.com')");
@@ -163,6 +164,94 @@ test('a recurring slot is not a conflict for a candidate date after its end_date
     $conflicts = $checker->findConflicts(
         new DateTimeImmutable('2026-09-08 18:00:00'),
         new DateTimeImmutable('2026-09-08 20:00:00'),
+    );
+
+    expect($conflicts)->toBe([]);
+});
+
+test('a new recurring slot conflicts with an ad-hoc booking on a future matching date', function () {
+    // Tuesday, 'all' parity, indefinite. 2026-09-08 and 2026-09-15 are both Tuesdays.
+    db()->exec("INSERT INTO bookings (band_id, start_time, end_time, booked_by_user_id)
+        VALUES (1, '2026-09-15 19:00:00', '2026-09-15 21:00:00', 7)");
+
+    $checker = new ConflictChecker(db());
+    $conflicts = $checker->findConflictsForNewRecurringSlot(
+        2,
+        '18:00:00',
+        '20:00:00',
+        WeekParity::All,
+        '2026-09-08',
+        null,
+    );
+
+    expect($conflicts)->toHaveCount(1);
+    expect($conflicts[0])->toMatchArray(['source' => 'ad_hoc', 'band_id' => 1]);
+});
+
+test('a new recurring slot does not conflict with an ad-hoc booking outside its date range', function () {
+    db()->exec("INSERT INTO bookings (band_id, start_time, end_time, booked_by_user_id)
+        VALUES (1, '2026-09-15 19:00:00', '2026-09-15 21:00:00', 7)");
+
+    $checker = new ConflictChecker(db());
+    $conflicts = $checker->findConflictsForNewRecurringSlot(
+        2,
+        '18:00:00',
+        '20:00:00',
+        WeekParity::All,
+        '2026-09-08',
+        '2026-09-08',
+    );
+
+    expect($conflicts)->toBe([]);
+});
+
+test('a new recurring slot conflicts with an overlapping existing recurring slot of compatible parity', function () {
+    db()->exec("INSERT INTO recurring_slots (band_id, day_of_week, start_time, end_time, week_parity, start_date)
+        VALUES (2, 2, '18:00:00', '20:00:00', 'all', '2020-01-01')");
+
+    $checker = new ConflictChecker(db());
+    $conflicts = $checker->findConflictsForNewRecurringSlot(
+        2,
+        '19:00:00',
+        '21:00:00',
+        WeekParity::Odd,
+        '2026-09-08',
+        null,
+    );
+
+    expect($conflicts)->toHaveCount(1);
+    expect($conflicts[0])->toMatchArray(['band_id' => 2, 'week_parity' => 'all']);
+});
+
+test('a new recurring slot does not conflict with an existing slot of the opposite fixed parity', function () {
+    db()->exec("INSERT INTO recurring_slots (band_id, day_of_week, start_time, end_time, week_parity, start_date)
+        VALUES (2, 2, '18:00:00', '20:00:00', 'even', '2020-01-01')");
+
+    $checker = new ConflictChecker(db());
+    $conflicts = $checker->findConflictsForNewRecurringSlot(
+        2,
+        '18:00:00',
+        '20:00:00',
+        WeekParity::Odd,
+        '2026-09-08',
+        null,
+    );
+
+    expect($conflicts)->toBe([]);
+});
+
+test('a new recurring slot does not conflict with a non-overlapping existing recurring slot date range', function () {
+    db()->exec("INSERT INTO recurring_slots (band_id, day_of_week, start_time, end_time, week_parity, start_date, end_date)
+        VALUES (2, 2, '18:00:00', '20:00:00', 'all', '2020-01-01', '2026-01-01')");
+
+    $checker = new ConflictChecker(db());
+    $conflicts = $checker->findConflictsForNewRecurringSlot(
+        2,
+        '18:00:00',
+        '20:00:00',
+        WeekParity::All,
+        '2026-09-08',
+        null,
     );
 
     expect($conflicts)->toBe([]);
