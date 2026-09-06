@@ -1,0 +1,8 @@
+RewriteEngine On
+
+# Don't rewrite requests for files/directories that actually exist
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+
+# Everything else goes through the front controller
+RewriteRule ^ index.php [QSA,L]
