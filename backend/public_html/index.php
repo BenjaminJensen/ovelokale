@@ -46,6 +46,12 @@ match ($path) {
         echo json_encode($result['body']);
     })(),
 
+    '/api/bands' => (function () {
+        $result = App\Http\BandController::index($_GET);
+        http_response_code($result['status']);
+        echo json_encode($result['body']);
+    })(),
+
     default => (function () {
         http_response_code(404);
         echo json_encode(['error' => 'Not found']);

@@ -40,6 +40,25 @@ try {
         ]);
     }
 
+    $bandNames = [
+        1 => 'The Wailers',
+        2 => 'The Beatles',
+        3 => 'Queen',
+        4 => 'ABBA',
+        5 => 'Fleetwood Mac',
+    ];
+
+    $insertBand = $pdo->prepare(
+        'INSERT IGNORE INTO bands (id, name) VALUES (:id, :name)'
+    );
+
+    foreach ($bandIds as $bandId) {
+        $insertBand->execute([
+            ':id' => $bandId,
+            ':name' => $bandNames[$bandId],
+        ]);
+    }
+
     $daysInMonth = (int) (new DateTimeImmutable(sprintf('%04d-%02d-01', $year, $month)))->format('t');
 
     $insertBooking = $pdo->prepare(

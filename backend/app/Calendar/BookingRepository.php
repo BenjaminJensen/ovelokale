@@ -21,9 +21,11 @@ final readonly class BookingRepository
     public function findOverlapping(DateTimeImmutable $weekStart, DateTimeImmutable $weekEnd, ?int $bandId): array
     {
         $sql = 'SELECT bookings.id, bookings.band_id, bookings.start_time, bookings.end_time,
-                       bookings.booked_by_user_id, users.name AS booked_by_user_name
+                       bookings.booked_by_user_id, users.name AS booked_by_user_name,
+                       bands.name AS band_name
                 FROM bookings
                 LEFT JOIN users ON users.id = bookings.booked_by_user_id
+                LEFT JOIN bands ON bands.id = bookings.band_id
                 WHERE bookings.start_time <= :week_end AND bookings.end_time >= :week_start';
 
         if ($bandId !== null) {
@@ -44,7 +46,7 @@ final readonly class BookingRepository
 
         $bookings = [];
 
-        /** @var array{id: string, band_id: string, start_time: string, end_time: string, booked_by_user_id: string, booked_by_user_name: ?string} $row */
+        /** @var array{id: string, band_id: string, start_time: string, end_time: string, booked_by_user_id: string, booked_by_user_name: ?string, band_name: ?string} $row */
         foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
             $bookings[] = new Booking(
                 id: (int) $row['id'],
@@ -53,6 +55,7 @@ final readonly class BookingRepository
                 endTime: new DateTimeImmutable($row['end_time']),
                 bookedByUserId: (int) $row['booked_by_user_id'],
                 bookedByUserName: $row['booked_by_user_name'],
+                bandName: $row['band_name'],
             );
         }
 

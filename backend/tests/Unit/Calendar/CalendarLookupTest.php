@@ -18,12 +18,13 @@ test('merges ad-hoc bookings and matching recurring slots into one sorted list',
             endTime: new DateTimeImmutable('2026-09-09 21:00:00'),
             bookedByUserId: 5,
             bookedByUserName: 'Jane Doe',
+            bandName: 'The Wailers',
         ),
     ];
 
     $recurringSlots = [
         // Tuesday 18:00-20:00, "all" parity weeks -> should be included.
-        new RecurringSlot(id: 2, bandId: 20, dayOfWeek: 2, startTime: '18:00:00', endTime: '20:00:00', weekParity: WeekParity::All),
+        new RecurringSlot(id: 2, bandId: 20, dayOfWeek: 2, startTime: '18:00:00', endTime: '20:00:00', weekParity: WeekParity::All, bandName: 'The Beatles'),
     ];
 
     $occurrences = CalendarLookup::resolveOccurrences($weekStart, $bookings, $recurringSlots);
@@ -35,6 +36,7 @@ test('merges ad-hoc bookings and matching recurring slots into one sorted list',
         'source' => 'recurring',
         'recurring_slot_id' => 2,
         'band_id' => 20,
+        'band_name' => 'The Beatles',
         'day_of_week' => 2,
         'date' => '2026-09-08',
         'start_time' => '2026-09-08 18:00:00',
@@ -45,6 +47,7 @@ test('merges ad-hoc bookings and matching recurring slots into one sorted list',
         'source' => 'ad_hoc',
         'id' => 1,
         'band_id' => 10,
+        'band_name' => 'The Wailers',
         'start_time' => '2026-09-09 19:00:00',
         'end_time' => '2026-09-09 21:00:00',
         'booked_by_user_id' => 5,

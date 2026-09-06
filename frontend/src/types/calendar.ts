@@ -4,6 +4,7 @@ export interface AdHocOccurrence {
   source: 'ad_hoc'
   id: number
   band_id: number
+  band_name: string | null
   start_time: string
   end_time: string
   booked_by_user_id: number
@@ -13,6 +14,7 @@ export interface RecurringOccurrence {
   source: 'recurring'
   recurring_slot_id: number
   band_id: number
+  band_name: string | null
   day_of_week: number
   date: string
   start_time: string

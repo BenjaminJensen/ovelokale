@@ -76,6 +76,7 @@ final readonly class CalendarLookup
                 'source' => 'recurring',
                 'recurring_slot_id' => $slot->id,
                 'band_id' => $slot->bandId,
+                'band_name' => $slot->bandName,
                 'day_of_week' => $slot->dayOfWeek,
                 'date' => $date->format('Y-m-d'),
                 'start_time' => $date->format('Y-m-d') . ' ' . $slot->startTime,

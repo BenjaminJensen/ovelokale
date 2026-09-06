@@ -18,6 +18,7 @@ final readonly class RecurringSlot
         public string $startTime,
         public string $endTime,
         public WeekParity $weekParity,
+        public ?string $bandName,
     ) {
     }
 }
