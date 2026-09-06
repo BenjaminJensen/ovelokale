@@ -7,29 +7,24 @@ describe('App', () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => ({
-        json: async () => ({ status: 'ok' }),
+        ok: true,
+        json: async () => ({
+          week_start: '2026-01-01',
+          week_end: '2026-01-07',
+          iso_week_number: 1,
+          iso_year: 2026,
+          week_parity: 'odd',
+          bookings: [],
+        }),
       })),
     )
   })
 
-  it('renders the API health status once the fetch resolves', async () => {
+  it('renders the heading and mounts the calendar', async () => {
     const wrapper = mount(App)
     await flushPromises()
 
-    expect(wrapper.text()).toContain('API health: ok')
-  })
-
-  it('renders an error message when the fetch fails', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => {
-        throw new Error('network down')
-      }),
-    )
-
-    const wrapper = mount(App)
-    await flushPromises()
-
-    expect(wrapper.text()).toContain('error: network down')
+    expect(wrapper.text()).toContain('Ovelokale')
+    expect(wrapper.find('.cal').exists()).toBe(true)
   })
 })

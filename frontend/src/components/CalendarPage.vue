@@ -1,0 +1,71 @@
+<script setup lang="ts">
+import { ref } from 'vue'
+import RehearsalCalendar from '@/components/RehearsalCalendar.vue'
+import { fetchCalendarWeek } from '@/api/calendar'
+import { mondaysInRange, toDateParam } from '@/utils/weeks'
+import type { CalendarBooking, CalendarOccurrence } from '@/types/calendar'
+
+const bookings = ref<CalendarBooking[]>([])
+const error = ref<string | null>(null)
+
+/** Guards against a slower, stale fetch (e.g. from a wider month view) overwriting a newer one. */
+let latestRequestId = 0
+
+function occurrenceId(occurrence: CalendarOccurrence): string {
+  return occurrence.source === 'ad_hoc'
+    ? `ad_hoc:${occurrence.id}`
+    : `recurring:${occurrence.recurring_slot_id}:${occurrence.date}`
+}
+
+/** Backend datetimes are naive local timestamps (`Y-m-d H:i:s`); swapping in `T` keeps `new Date(...)` parsing them as local time. */
+function toLocalIso(datetime: string): string {
+  return datetime.replace(' ', 'T')
+}
+
+function toCalendarBooking(occurrence: CalendarOccurrence): CalendarBooking {
+  return {
+    id: occurrenceId(occurrence),
+    start: toLocalIso(occurrence.start_time),
+    end: toLocalIso(occurrence.end_time),
+    bandId: occurrence.band_id,
+  }
+}
+
+async function handleRangeChange({ from, to }: { from: Date; to: Date }): Promise<void> {
+  const requestId = ++latestRequestId
+  const weekStarts = mondaysInRange(from, to).map(toDateParam)
+
+  try {
+    const weeks = await Promise.all(weekStarts.map((weekStart) => fetchCalendarWeek(weekStart)))
+    if (requestId !== latestRequestId) return
+
+    const merged = new Map<string, CalendarBooking>()
+    for (const week of weeks) {
+      for (const occurrence of week.bookings) {
+        const booking = toCalendarBooking(occurrence)
+        merged.set(booking.id, booking)
+      }
+    }
+
+    bookings.value = [...merged.values()]
+    error.value = null
+  } catch (e) {
+    if (requestId !== latestRequestId) return
+    error.value = e instanceof Error ? e.message : String(e)
+  }
+}
+</script>
+
+<template>
+  <div>
+    <p v-if="error" role="alert" class="calendar-error">Could not load the calendar: {{ error }}</p>
+    <RehearsalCalendar :bookings="bookings" :bands="[]" @range-change="handleRangeChange" />
+  </div>
+</template>
+
+<style scoped>
+.calendar-error {
+  color: #b91c1c;
+  margin: 0 0 12px;
+}
+</style>
