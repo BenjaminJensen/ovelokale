@@ -17,6 +17,8 @@ abstract class TestCase extends BaseTestCase
         db()->exec('SET FOREIGN_KEY_CHECKS = 0');
         db()->exec('TRUNCATE TABLE bookings');
         db()->exec('TRUNCATE TABLE recurring_slots');
+        db()->exec('TRUNCATE TABLE band_members');
+        db()->exec('TRUNCATE TABLE bands');
         db()->exec('TRUNCATE TABLE users');
         db()->exec('SET FOREIGN_KEY_CHECKS = 1');
     }

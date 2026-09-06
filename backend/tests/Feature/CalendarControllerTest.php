@@ -6,6 +6,7 @@ use App\Http\CalendarController;
 
 beforeEach(function () {
     db()->exec("INSERT INTO users (id, name, email) VALUES (7, 'Jane Doe', 'jane@example.com')");
+    db()->exec("INSERT INTO bands (id, name) VALUES (1, 'The Wailers'), (2, 'The Beatles'), (3, 'Queen')");
 });
 
 test('returns ad-hoc bookings and parity-matching recurring slots for the requested week', function () {
@@ -34,6 +35,7 @@ test('returns ad-hoc bookings and parity-matching recurring slots for the reques
     expect($result['body']['bookings'][0]['source'])->toBe('recurring');
     expect($result['body']['bookings'][1]['source'])->toBe('ad_hoc');
     expect($result['body']['bookings'][1]['booked_by_user_name'])->toBe('Jane Doe');
+    expect($result['body']['bookings'][1]['band_name'])->toBe('The Wailers');
 });
 
 test('odd-parity recurring slots do not appear in an even week', function () {

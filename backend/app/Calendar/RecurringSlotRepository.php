@@ -19,8 +19,11 @@ final readonly class RecurringSlotRepository
      */
     public function findMatchingParity(WeekParity $weekParity, ?int $bandId): array
     {
-        $sql = "SELECT id, band_id, day_of_week, start_time, end_time, week_parity
+        $sql = "SELECT recurring_slots.id, recurring_slots.band_id, recurring_slots.day_of_week,
+                       recurring_slots.start_time, recurring_slots.end_time, recurring_slots.week_parity,
+                       bands.name AS band_name
                 FROM recurring_slots
+                LEFT JOIN bands ON bands.id = recurring_slots.band_id
                 WHERE week_parity IN ('all', :week_parity)";
 
         if ($bandId !== null) {
@@ -40,7 +43,7 @@ final readonly class RecurringSlotRepository
 
         $slots = [];
 
-        /** @var array{id: string, band_id: string, day_of_week: string, start_time: string, end_time: string, week_parity: string} $row */
+        /** @var array{id: string, band_id: string, day_of_week: string, start_time: string, end_time: string, week_parity: string, band_name: ?string} $row */
         foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
             $slots[] = new RecurringSlot(
                 id: (int) $row['id'],
@@ -49,6 +52,7 @@ final readonly class RecurringSlotRepository
                 startTime: $row['start_time'],
                 endTime: $row['end_time'],
                 weekParity: WeekParity::from($row['week_parity']),
+                bandName: $row['band_name'],
             );
         }
 

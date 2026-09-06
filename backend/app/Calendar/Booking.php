@@ -15,6 +15,7 @@ final readonly class Booking
         public DateTimeImmutable $endTime,
         public int $bookedByUserId,
         public ?string $bookedByUserName,
+        public ?string $bandName,
     ) {
     }
 
@@ -27,6 +28,7 @@ final readonly class Booking
             'source' => 'ad_hoc',
             'id' => $this->id,
             'band_id' => $this->bandId,
+            'band_name' => $this->bandName,
             'start_time' => $this->startTime->format('Y-m-d H:i:s'),
             'end_time' => $this->endTime->format('Y-m-d H:i:s'),
             'booked_by_user_id' => $this->bookedByUserId,

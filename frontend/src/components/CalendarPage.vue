@@ -1,12 +1,25 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import RehearsalCalendar from '@/components/RehearsalCalendar.vue'
 import { fetchCalendarWeek } from '@/api/calendar'
+import { fetchBands } from '@/api/bands'
 import { mondaysInRange, toDateParam } from '@/utils/weeks'
-import type { CalendarBooking, CalendarOccurrence } from '@/types/calendar'
+import type { CalendarBand, CalendarBooking, CalendarOccurrence } from '@/types/calendar'
 
 const bookings = ref<CalendarBooking[]>([])
+const bands = ref<CalendarBand[]>([])
 const error = ref<string | null>(null)
+
+onMounted(async () => {
+  try {
+    bands.value = await fetchBands()
+  } catch (e) {
+    // Band names/colors are a display nicety, not required for the calendar
+    // to function — fall back to the "Booked" label rather than surfacing a
+    // misleading "Could not load the calendar" error.
+    console.error('Could not load bands:', e)
+  }
+})
 
 /** Guards against a slower, stale fetch (e.g. from a wider month view) overwriting a newer one. */
 let latestRequestId = 0
@@ -59,7 +72,7 @@ async function handleRangeChange({ from, to }: { from: Date; to: Date }): Promis
 <template>
   <div>
     <p v-if="error" role="alert" class="calendar-error">Could not load the calendar: {{ error }}</p>
-    <RehearsalCalendar :bookings="bookings" :bands="[]" @range-change="handleRangeChange" />
+    <RehearsalCalendar :bookings="bookings" :bands="bands" @range-change="handleRangeChange" />
   </div>
 </template>
 
