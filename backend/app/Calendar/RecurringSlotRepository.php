@@ -21,6 +21,7 @@ final readonly class RecurringSlotRepository
     {
         $sql = "SELECT recurring_slots.id, recurring_slots.band_id, recurring_slots.day_of_week,
                        recurring_slots.start_time, recurring_slots.end_time, recurring_slots.week_parity,
+                       recurring_slots.start_date, recurring_slots.end_date,
                        bands.name AS band_name
                 FROM recurring_slots
                 LEFT JOIN bands ON bands.id = recurring_slots.band_id
@@ -43,7 +44,7 @@ final readonly class RecurringSlotRepository
 
         $slots = [];
 
-        /** @var array{id: string, band_id: string, day_of_week: string, start_time: string, end_time: string, week_parity: string, band_name: ?string} $row */
+        /** @var array{id: string, band_id: string, day_of_week: string, start_time: string, end_time: string, week_parity: string, start_date: string, end_date: ?string, band_name: ?string} $row */
         foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
             $slots[] = new RecurringSlot(
                 id: (int) $row['id'],
@@ -53,6 +54,8 @@ final readonly class RecurringSlotRepository
                 endTime: $row['end_time'],
                 weekParity: WeekParity::from($row['week_parity']),
                 bandName: $row['band_name'],
+                startDate: $row['start_date'],
+                endDate: $row['end_date'],
             );
         }
 

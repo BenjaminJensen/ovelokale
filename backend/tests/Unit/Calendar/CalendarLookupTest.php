@@ -24,7 +24,7 @@ test('merges ad-hoc bookings and matching recurring slots into one sorted list',
 
     $recurringSlots = [
         // Tuesday 18:00-20:00, "all" parity weeks -> should be included.
-        new RecurringSlot(id: 2, bandId: 20, dayOfWeek: 2, startTime: '18:00:00', endTime: '20:00:00', weekParity: WeekParity::All, bandName: 'The Beatles'),
+        new RecurringSlot(id: 2, bandId: 20, dayOfWeek: 2, startTime: '18:00:00', endTime: '20:00:00', weekParity: WeekParity::All, bandName: 'The Beatles', startDate: '2020-01-01', endDate: null),
     ];
 
     $occurrences = CalendarLookup::resolveOccurrences($weekStart, $bookings, $recurringSlots);

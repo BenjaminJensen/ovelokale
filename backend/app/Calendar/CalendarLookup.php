@@ -71,6 +71,11 @@ final readonly class CalendarLookup
 
         foreach ($recurringSlots as $slot) {
             $date = $weekStart->modify(sprintf('+%d days', $slot->dayOfWeek - 1));
+            $dateString = $date->format('Y-m-d');
+
+            if ($dateString < $slot->startDate || ($slot->endDate !== null && $dateString > $slot->endDate)) {
+                continue;
+            }
 
             $occurrences[] = [
                 'source' => 'recurring',
@@ -78,9 +83,9 @@ final readonly class CalendarLookup
                 'band_id' => $slot->bandId,
                 'band_name' => $slot->bandName,
                 'day_of_week' => $slot->dayOfWeek,
-                'date' => $date->format('Y-m-d'),
-                'start_time' => $date->format('Y-m-d') . ' ' . $slot->startTime,
-                'end_time' => $date->format('Y-m-d') . ' ' . $slot->endTime,
+                'date' => $dateString,
+                'start_time' => $dateString . ' ' . $slot->startTime,
+                'end_time' => $dateString . ' ' . $slot->endTime,
                 'week_parity' => $slot->weekParity->value,
             ];
         }

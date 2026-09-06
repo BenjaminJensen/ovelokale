@@ -75,8 +75,8 @@ test('a non-overlapping ad-hoc booking on the same day returns an empty conflict
 
 test('a parity- and day-matching recurring slot is reported as a conflict against a candidate ad-hoc range', function () {
     // Tuesday, 'odd' parity. 2026-09-08 is ISO week 37 (odd).
-    db()->exec("INSERT INTO recurring_slots (band_id, day_of_week, start_time, end_time, week_parity)
-        VALUES (2, 2, '18:00:00', '20:00:00', 'odd')");
+    db()->exec("INSERT INTO recurring_slots (band_id, day_of_week, start_time, end_time, week_parity, start_date)
+        VALUES (2, 2, '18:00:00', '20:00:00', 'odd', '2020-01-01')");
 
     $checker = new ConflictChecker(db());
     $conflicts = $checker->findConflicts(
@@ -99,8 +99,8 @@ test('a parity- and day-matching recurring slot is reported as a conflict agains
 test('an ad-hoc candidate overlapping both an ad-hoc booking and a recurring slot returns both', function () {
     db()->exec("INSERT INTO bookings (band_id, start_time, end_time, booked_by_user_id)
         VALUES (1, '2026-09-08 19:30:00', '2026-09-08 21:00:00', 7)");
-    db()->exec("INSERT INTO recurring_slots (band_id, day_of_week, start_time, end_time, week_parity)
-        VALUES (2, 2, '18:00:00', '20:00:00', 'all')");
+    db()->exec("INSERT INTO recurring_slots (band_id, day_of_week, start_time, end_time, week_parity, start_date)
+        VALUES (2, 2, '18:00:00', '20:00:00', 'all', '2020-01-01')");
 
     $checker = new ConflictChecker(db());
     $conflicts = $checker->findConflicts(
@@ -114,8 +114,8 @@ test('an ad-hoc candidate overlapping both an ad-hoc booking and a recurring slo
 
 test('a recurring slot on a matching day but opposite week parity is not a conflict', function () {
     // 2026-09-08 is ISO week 37 (odd); an 'even'-only slot must not match.
-    db()->exec("INSERT INTO recurring_slots (band_id, day_of_week, start_time, end_time, week_parity)
-        VALUES (2, 2, '18:00:00', '20:00:00', 'even')");
+    db()->exec("INSERT INTO recurring_slots (band_id, day_of_week, start_time, end_time, week_parity, start_date)
+        VALUES (2, 2, '18:00:00', '20:00:00', 'even', '2020-01-01')");
 
     $checker = new ConflictChecker(db());
     $conflicts = $checker->findConflicts(
@@ -128,8 +128,36 @@ test('a recurring slot on a matching day but opposite week parity is not a confl
 
 test('a recurring slot on a different day of week is not a conflict', function () {
     // Wednesday slot checked against a Tuesday candidate.
-    db()->exec("INSERT INTO recurring_slots (band_id, day_of_week, start_time, end_time, week_parity)
-        VALUES (2, 3, '18:00:00', '20:00:00', 'all')");
+    db()->exec("INSERT INTO recurring_slots (band_id, day_of_week, start_time, end_time, week_parity, start_date)
+        VALUES (2, 3, '18:00:00', '20:00:00', 'all', '2020-01-01')");
+
+    $checker = new ConflictChecker(db());
+    $conflicts = $checker->findConflicts(
+        new DateTimeImmutable('2026-09-08 18:00:00'),
+        new DateTimeImmutable('2026-09-08 20:00:00'),
+    );
+
+    expect($conflicts)->toBe([]);
+});
+
+test('a recurring slot is not a conflict for a candidate date before its start_date', function () {
+    // Tuesday, 'all' parity, but the slot does not start until 2026-09-15.
+    db()->exec("INSERT INTO recurring_slots (band_id, day_of_week, start_time, end_time, week_parity, start_date)
+        VALUES (2, 2, '18:00:00', '20:00:00', 'all', '2026-09-15')");
+
+    $checker = new ConflictChecker(db());
+    $conflicts = $checker->findConflicts(
+        new DateTimeImmutable('2026-09-08 18:00:00'),
+        new DateTimeImmutable('2026-09-08 20:00:00'),
+    );
+
+    expect($conflicts)->toBe([]);
+});
+
+test('a recurring slot is not a conflict for a candidate date after its end_date', function () {
+    // Tuesday, 'all' parity, but the slot ended on 2026-09-01.
+    db()->exec("INSERT INTO recurring_slots (band_id, day_of_week, start_time, end_time, week_parity, start_date, end_date)
+        VALUES (2, 2, '18:00:00', '20:00:00', 'all', '2020-01-01', '2026-09-01')");
 
     $checker = new ConflictChecker(db());
     $conflicts = $checker->findConflicts(

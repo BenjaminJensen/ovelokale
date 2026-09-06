@@ -19,12 +19,12 @@ test('returns ad-hoc bookings and parity-matching recurring slots for the reques
         VALUES (1, '2026-09-20 19:00:00', '2026-09-20 21:00:00', 7)");
 
     // Odd-week slot — matches week 37.
-    db()->exec("INSERT INTO recurring_slots (band_id, day_of_week, start_time, end_time, week_parity)
-        VALUES (2, 2, '18:00:00', '20:00:00', 'odd')");
+    db()->exec("INSERT INTO recurring_slots (band_id, day_of_week, start_time, end_time, week_parity, start_date)
+        VALUES (2, 2, '18:00:00', '20:00:00', 'odd', '2020-01-01')");
 
     // Even-week slot — must not match week 37.
-    db()->exec("INSERT INTO recurring_slots (band_id, day_of_week, start_time, end_time, week_parity)
-        VALUES (3, 3, '18:00:00', '20:00:00', 'even')");
+    db()->exec("INSERT INTO recurring_slots (band_id, day_of_week, start_time, end_time, week_parity, start_date)
+        VALUES (3, 3, '18:00:00', '20:00:00', 'even', '2020-01-01')");
 
     $result = CalendarController::index(['week_start' => '2026-09-07']);
 
@@ -40,8 +40,8 @@ test('returns ad-hoc bookings and parity-matching recurring slots for the reques
 
 test('odd-parity recurring slots do not appear in an even week', function () {
     // Odd-week slot — matched week 37, must not match week 38.
-    db()->exec("INSERT INTO recurring_slots (band_id, day_of_week, start_time, end_time, week_parity)
-        VALUES (2, 2, '18:00:00', '20:00:00', 'odd')");
+    db()->exec("INSERT INTO recurring_slots (band_id, day_of_week, start_time, end_time, week_parity, start_date)
+        VALUES (2, 2, '18:00:00', '20:00:00', 'odd', '2020-01-01')");
 
     // Monday 2026-09-14, ISO week 38 (even).
     $result = CalendarController::index(['week_start' => '2026-09-14']);
@@ -53,8 +53,8 @@ test('odd-parity recurring slots do not appear in an even week', function () {
 });
 
 test('a week_parity=all recurring slot appears in both odd and even weeks', function () {
-    db()->exec("INSERT INTO recurring_slots (band_id, day_of_week, start_time, end_time, week_parity)
-        VALUES (2, 2, '18:00:00', '20:00:00', 'all')");
+    db()->exec("INSERT INTO recurring_slots (band_id, day_of_week, start_time, end_time, week_parity, start_date)
+        VALUES (2, 2, '18:00:00', '20:00:00', 'all', '2020-01-01')");
 
     // Monday 2026-09-07, ISO week 37 (odd).
     $oddResult = CalendarController::index(['week_start' => '2026-09-07']);
@@ -74,6 +74,52 @@ test('a week_parity=all recurring slot appears in both odd and even weeks', func
         'band_id' => 2,
         'date' => '2026-09-15',
     ]);
+});
+
+test('a recurring slot does not appear in a week entirely before its start_date', function () {
+    // Tuesday, 'all' parity, but the slot does not start until 2026-09-15
+    // (the Tuesday of ISO week 38) — must not appear in week 37.
+    db()->exec("INSERT INTO recurring_slots (band_id, day_of_week, start_time, end_time, week_parity, start_date)
+        VALUES (2, 2, '18:00:00', '20:00:00', 'all', '2026-09-15')");
+
+    $result = CalendarController::index(['week_start' => '2026-09-07']);
+
+    expect($result['body']['bookings'])->toBe([]);
+});
+
+test('a recurring slot appears in a week within its start_date/end_date range', function () {
+    db()->exec("INSERT INTO recurring_slots (band_id, day_of_week, start_time, end_time, week_parity, start_date, end_date)
+        VALUES (2, 2, '18:00:00', '20:00:00', 'all', '2026-09-01', '2026-09-30')");
+
+    $result = CalendarController::index(['week_start' => '2026-09-07']);
+
+    expect($result['body']['bookings'])->toHaveCount(1);
+    expect($result['body']['bookings'][0])->toMatchArray([
+        'source' => 'recurring',
+        'band_id' => 2,
+        'date' => '2026-09-08',
+    ]);
+});
+
+test('a recurring slot does not appear in a week entirely after its end_date', function () {
+    // Ends 2026-09-01, so it must not appear in week 37 (2026-09-07 to 2026-09-13).
+    db()->exec("INSERT INTO recurring_slots (band_id, day_of_week, start_time, end_time, week_parity, start_date, end_date)
+        VALUES (2, 2, '18:00:00', '20:00:00', 'all', '2020-01-01', '2026-09-01')");
+
+    $result = CalendarController::index(['week_start' => '2026-09-07']);
+
+    expect($result['body']['bookings'])->toBe([]);
+});
+
+test('a recurring slot with no end_date continues to resolve indefinitely into the future', function () {
+    db()->exec("INSERT INTO recurring_slots (band_id, day_of_week, start_time, end_time, week_parity, start_date, end_date)
+        VALUES (2, 2, '18:00:00', '20:00:00', 'all', '2020-01-01', NULL)");
+
+    // Far in the future.
+    $result = CalendarController::index(['week_start' => '2030-09-02']);
+
+    expect($result['body']['bookings'])->toHaveCount(1);
+    expect($result['body']['bookings'][0]['source'])->toBe('recurring');
 });
 
 test('an ad-hoc booking that only partially overlaps the week is still included', function () {
