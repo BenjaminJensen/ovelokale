@@ -47,10 +47,13 @@ ovelokale/
 │   ├── tests/                # Pest tests (Unit/ and Feature/)
 │   ├── composer.json
 │   └── development.md        # backend dev guide (testing, stan, cs, routes)
-└── frontend/                 # Vue 3 + Vite + TypeScript SPA
-    ├── src/
-    ├── tests/unit/
-    └── development.md         # frontend dev guide (testing, typecheck, lint, format)
+├── frontend/                 # Vue 3 + Vite + TypeScript SPA
+│   ├── src/
+│   ├── tests/unit/
+│   ├── e2e/                  # Playwright specs, run in a real browser
+│   └── development.md         # frontend dev guide (testing, typecheck, lint, format)
+└── scripts/
+    └── e2e.sh                 # seeds the e2e fixture, then runs Playwright
 ```
 
 ## Prerequisites
@@ -84,6 +87,7 @@ ovelokale/
 | `db`         | localhost:3306                 | MySQL 8.0                                |
 | `phpmyadmin` | http://localhost:8081          | Log in with the `DB_USER`/`DB_PASSWORD` from `.env` |
 | `mailhog`    | http://localhost:8025          | Catches all mail sent by the PHP app (SMTP on :1025) |
+| `playwright` | —                              | Chromium for the e2e suite; not started by `up`, run via `./scripts/e2e.sh` |
 
 Ports are configurable via `.env`.
 
@@ -107,5 +111,6 @@ docker compose logs -f <service>   # tail logs for one service
 docker compose exec web bash       # shell into the PHP container
 docker compose exec web composer <cmd>
 docker compose exec frontend sh    # shell into the frontend container
+./scripts/e2e.sh                   # run the Playwright suite (reseeds the dev database)
 ```
 
