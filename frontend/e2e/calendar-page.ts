@@ -80,6 +80,22 @@ export async function chooseBand(page: Page, bandName: string): Promise<void> {
   await dialog(page).getByLabel('Band').selectOption({ label: bandName })
 }
 
+/** The Band select's first option — a booking that belongs to its booker, not a band. */
+export const PERSONAL_BAND_OPTION = 'Ingen – personlig øvning'
+
+export async function choosePersonalBooking(page: Page): Promise<void> {
+  await dialog(page).getByLabel('Band').selectOption({ label: PERSONAL_BAND_OPTION })
+}
+
+export function bandOptions(page: Page): Locator {
+  return dialog(page).getByLabel('Band').locator('option')
+}
+
+/** Switches the dialog between "Engangsbooking" and "Ugentlig gentagelse". */
+export async function chooseMode(page: Page, label: string): Promise<void> {
+  await dialog(page).getByRole('button', { name: label, exact: true }).click()
+}
+
 /**
  * The week body scrolls internally (it is capped at 620px but renders all 24
  * hours), so evening occurrences sit below the fold. Scroll them into frame

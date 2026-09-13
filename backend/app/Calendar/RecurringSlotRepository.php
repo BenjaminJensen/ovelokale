@@ -14,7 +14,8 @@ final readonly class RecurringSlotRepository
     }
 
     public function create(
-        int $bandId,
+        ?int $bandId,
+        int $bookedByUserId,
         int $dayOfWeek,
         string $startTime,
         string $endTime,
@@ -23,10 +24,11 @@ final readonly class RecurringSlotRepository
         ?string $endDate,
     ): RecurringSlot {
         $statement = $this->pdo->prepare(
-            'INSERT INTO recurring_slots (band_id, day_of_week, start_time, end_time, week_parity, start_date, end_date)
-             VALUES (:band_id, :day_of_week, :start_time, :end_time, :week_parity, :start_date, :end_date)'
+            'INSERT INTO recurring_slots (band_id, booked_by_user_id, day_of_week, start_time, end_time, week_parity, start_date, end_date)
+             VALUES (:band_id, :booked_by_user_id, :day_of_week, :start_time, :end_time, :week_parity, :start_date, :end_date)'
         );
-        $statement->bindValue(':band_id', $bandId, PDO::PARAM_INT);
+        $statement->bindValue(':band_id', $bandId, $bandId === null ? PDO::PARAM_NULL : PDO::PARAM_INT);
+        $statement->bindValue(':booked_by_user_id', $bookedByUserId, PDO::PARAM_INT);
         $statement->bindValue(':day_of_week', $dayOfWeek, PDO::PARAM_INT);
         $statement->bindValue(':start_time', $startTime);
         $statement->bindValue(':end_time', $endTime);
@@ -49,16 +51,18 @@ final readonly class RecurringSlotRepository
         $sql = 'SELECT recurring_slots.id, recurring_slots.band_id, recurring_slots.day_of_week,
                        recurring_slots.start_time, recurring_slots.end_time, recurring_slots.week_parity,
                        recurring_slots.start_date, recurring_slots.end_date,
+                       recurring_slots.booked_by_user_id, users.name AS booked_by_user_name,
                        bands.name AS band_name
                 FROM recurring_slots
                 LEFT JOIN bands ON bands.id = recurring_slots.band_id
+                LEFT JOIN users ON users.id = recurring_slots.booked_by_user_id
                 WHERE recurring_slots.id = :id';
 
         $statement = $this->pdo->prepare($sql);
         $statement->bindValue(':id', $id, PDO::PARAM_INT);
         $statement->execute();
 
-        /** @var array{id: string, band_id: string, day_of_week: string, start_time: string, end_time: string, week_parity: string, start_date: string, end_date: ?string, band_name: ?string}|false $row */
+        /** @var array{id: string, band_id: ?string, day_of_week: string, start_time: string, end_time: string, week_parity: string, start_date: string, end_date: ?string, band_name: ?string, booked_by_user_id: string, booked_by_user_name: ?string}|false $row */
         $row = $statement->fetch(PDO::FETCH_ASSOC);
 
         if ($row === false) {
@@ -67,7 +71,7 @@ final readonly class RecurringSlotRepository
 
         return new RecurringSlot(
             id: (int) $row['id'],
-            bandId: (int) $row['band_id'],
+            bandId: $row['band_id'] === null ? null : (int) $row['band_id'],
             dayOfWeek: (int) $row['day_of_week'],
             startTime: $row['start_time'],
             endTime: $row['end_time'],
@@ -75,6 +79,8 @@ final readonly class RecurringSlotRepository
             bandName: $row['band_name'],
             startDate: $row['start_date'],
             endDate: $row['end_date'],
+            bookedByUserId: (int) $row['booked_by_user_id'],
+            bookedByUserName: $row['booked_by_user_name'],
         );
     }
 
@@ -96,9 +102,11 @@ final readonly class RecurringSlotRepository
         $sql = 'SELECT recurring_slots.id, recurring_slots.band_id, recurring_slots.day_of_week,
                        recurring_slots.start_time, recurring_slots.end_time, recurring_slots.week_parity,
                        recurring_slots.start_date, recurring_slots.end_date,
+                       recurring_slots.booked_by_user_id, users.name AS booked_by_user_name,
                        bands.name AS band_name
                 FROM recurring_slots
                 LEFT JOIN bands ON bands.id = recurring_slots.band_id
+                LEFT JOIN users ON users.id = recurring_slots.booked_by_user_id
                 WHERE recurring_slots.day_of_week = :day_of_week
                   AND recurring_slots.start_time < :pattern_end_time
                   AND recurring_slots.end_time > :pattern_start_time
@@ -116,11 +124,11 @@ final readonly class RecurringSlotRepository
 
         $slots = [];
 
-        /** @var array{id: string, band_id: string, day_of_week: string, start_time: string, end_time: string, week_parity: string, start_date: string, end_date: ?string, band_name: ?string} $row */
+        /** @var array{id: string, band_id: ?string, day_of_week: string, start_time: string, end_time: string, week_parity: string, start_date: string, end_date: ?string, band_name: ?string, booked_by_user_id: string, booked_by_user_name: ?string} $row */
         foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
             $slots[] = new RecurringSlot(
                 id: (int) $row['id'],
-                bandId: (int) $row['band_id'],
+                bandId: $row['band_id'] === null ? null : (int) $row['band_id'],
                 dayOfWeek: (int) $row['day_of_week'],
                 startTime: $row['start_time'],
                 endTime: $row['end_time'],
@@ -128,6 +136,8 @@ final readonly class RecurringSlotRepository
                 bandName: $row['band_name'],
                 startDate: $row['start_date'],
                 endDate: $row['end_date'],
+                bookedByUserId: (int) $row['booked_by_user_id'],
+                bookedByUserName: $row['booked_by_user_name'],
             );
         }
 
@@ -144,16 +154,18 @@ final readonly class RecurringSlotRepository
         $sql = "SELECT recurring_slots.id, recurring_slots.band_id, recurring_slots.day_of_week,
                        recurring_slots.start_time, recurring_slots.end_time, recurring_slots.week_parity,
                        recurring_slots.start_date, recurring_slots.end_date,
+                       recurring_slots.booked_by_user_id, users.name AS booked_by_user_name,
                        bands.name AS band_name
                 FROM recurring_slots
                 LEFT JOIN bands ON bands.id = recurring_slots.band_id
-                WHERE week_parity IN ('all', :week_parity)";
+                LEFT JOIN users ON users.id = recurring_slots.booked_by_user_id
+                WHERE recurring_slots.week_parity IN ('all', :week_parity)";
 
         if ($bandId !== null) {
-            $sql .= ' AND band_id = :band_id';
+            $sql .= ' AND recurring_slots.band_id = :band_id';
         }
 
-        $sql .= ' ORDER BY day_of_week, start_time';
+        $sql .= ' ORDER BY recurring_slots.day_of_week, recurring_slots.start_time';
 
         $statement = $this->pdo->prepare($sql);
         $statement->bindValue(':week_parity', $weekParity->value);
@@ -166,11 +178,11 @@ final readonly class RecurringSlotRepository
 
         $slots = [];
 
-        /** @var array{id: string, band_id: string, day_of_week: string, start_time: string, end_time: string, week_parity: string, start_date: string, end_date: ?string, band_name: ?string} $row */
+        /** @var array{id: string, band_id: ?string, day_of_week: string, start_time: string, end_time: string, week_parity: string, start_date: string, end_date: ?string, band_name: ?string, booked_by_user_id: string, booked_by_user_name: ?string} $row */
         foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
             $slots[] = new RecurringSlot(
                 id: (int) $row['id'],
-                bandId: (int) $row['band_id'],
+                bandId: $row['band_id'] === null ? null : (int) $row['band_id'],
                 dayOfWeek: (int) $row['day_of_week'],
                 startTime: $row['start_time'],
                 endTime: $row['end_time'],
@@ -178,6 +190,8 @@ final readonly class RecurringSlotRepository
                 bandName: $row['band_name'],
                 startDate: $row['start_date'],
                 endDate: $row['end_date'],
+                bookedByUserId: (int) $row['booked_by_user_id'],
+                bookedByUserName: $row['booked_by_user_name'],
             );
         }
 

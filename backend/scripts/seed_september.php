@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 require __DIR__ . '/../app/bootstrap.php';
 
+use App\User\CurrentUser;
+
 /**
  * Dev-only seed script. Clears `bookings` and `recurring_slots`, then inserts
  * random test data for September of the given year (default: current year):
@@ -119,8 +121,8 @@ try {
     }
 
     $insertSlot = $pdo->prepare(
-        'INSERT INTO recurring_slots (band_id, day_of_week, start_time, end_time, week_parity, start_date)
-         VALUES (:band_id, :day_of_week, :start_time, :end_time, :week_parity, :start_date)'
+        'INSERT INTO recurring_slots (band_id, booked_by_user_id, day_of_week, start_time, end_time, week_parity, start_date)
+         VALUES (:band_id, :booked_by_user_id, :day_of_week, :start_time, :end_time, :week_parity, :start_date)'
     );
 
     $slotTarget = 8;
@@ -148,6 +150,7 @@ try {
 
         $insertSlot->execute([
             ':band_id' => $bandId,
+            ':booked_by_user_id' => CurrentUser::ID,
             ':day_of_week' => $dayOfWeek,
             ':start_time' => sprintf('%02d:00:00', $startHour),
             ':end_time' => sprintf('%02d:00:00', $endHour),

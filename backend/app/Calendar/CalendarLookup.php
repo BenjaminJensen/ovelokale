@@ -82,6 +82,8 @@ final readonly class CalendarLookup
                 'recurring_slot_id' => $slot->id,
                 'band_id' => $slot->bandId,
                 'band_name' => $slot->bandName,
+                'booked_by_user_id' => $slot->bookedByUserId,
+                'booked_by_user_name' => $slot->bookedByUserName,
                 'day_of_week' => $slot->dayOfWeek,
                 'date' => $dateString,
                 'start_time' => $dateString . ' ' . $slot->startTime,

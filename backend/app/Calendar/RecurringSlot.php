@@ -15,7 +15,7 @@ final readonly class RecurringSlot
      */
     public function __construct(
         public int $id,
-        public int $bandId,
+        public ?int $bandId,
         public int $dayOfWeek,
         public string $startTime,
         public string $endTime,
@@ -23,6 +23,8 @@ final readonly class RecurringSlot
         public ?string $bandName,
         public string $startDate,
         public ?string $endDate,
+        public int $bookedByUserId,
+        public ?string $bookedByUserName,
     ) {
     }
 
@@ -41,6 +43,8 @@ final readonly class RecurringSlot
             'week_parity' => $this->weekParity->value,
             'start_date' => $this->startDate,
             'end_date' => $this->endDate,
+            'booked_by_user_id' => $this->bookedByUserId,
+            'booked_by_user_name' => $this->bookedByUserName,
         ];
     }
 }

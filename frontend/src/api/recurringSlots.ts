@@ -1,7 +1,8 @@
 import type { AdHocOccurrence, WeekParity } from '@/types/calendar'
 
 export interface CreateRecurringSlotPayload {
-  bandId: number
+  /** `null` books personally: the slot belongs to the creator, not a band. */
+  bandId: number | null
   /** `Y-m-d`; its weekday becomes the slot's day_of_week (per ADR 0001). */
   startDate: string
   /** `Y-m-d`, or null for an indefinite slot. */
@@ -15,7 +16,7 @@ export interface CreateRecurringSlotPayload {
 
 export interface RecurringSlot {
   id: number
-  band_id: number
+  band_id: number | null
   band_name: string | null
   day_of_week: number
   start_time: string
@@ -23,6 +24,8 @@ export interface RecurringSlot {
   week_parity: WeekParity
   start_date: string
   end_date: string | null
+  booked_by_user_id: number
+  booked_by_user_name: string | null
 }
 
 /**
@@ -33,8 +36,10 @@ export interface RecurringSlot {
 export interface RecurringPatternConflict {
   source: 'recurring_pattern'
   id: number
-  band_id: number
+  band_id: number | null
   band_name: string | null
+  booked_by_user_id: number
+  booked_by_user_name: string | null
   day_of_week: number
   /** `H:i:s`, no date — the conflict isn't tied to one occurrence. */
   start_time: string

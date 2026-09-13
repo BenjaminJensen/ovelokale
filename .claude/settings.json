@@ -14,7 +14,15 @@
       "Bash(docker compose run --rm --no-deps playwright:*)",
       "Bash(./scripts/e2e.sh:*)",
       "Bash(curl -s http://localhost:8080/api/:*)",
-      "Bash(curl -s http://localhost:5173/:*)"
+      "Bash(curl -s http://localhost:5173/:*)",
+      "Bash(cat:*)",
+      "Bash(head:*)",
+      "Bash(tail:*)",
+      "Bash(sed -n:*)",
+      "Bash(grep:*)",
+      "Bash(rg:*)",
+      "Bash(ls:*)",
+      "Bash(wc:*)"
     ]
   }
 }

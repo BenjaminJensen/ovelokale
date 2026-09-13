@@ -8,13 +8,17 @@ use App\Band\BandRepository;
 use App\Calendar\ConflictChecker;
 use App\Calendar\RecurringSlotRepository;
 use App\Calendar\WeekParity;
+use App\User\CurrentUser;
 use DateTimeImmutable;
 use Exception;
 
 final class RecurringSlotController
 {
     /**
-     * POST /api/recurring-slots — body: {band_id, start_date, end_date?, start_time, end_time, week_parity}
+     * POST /api/recurring-slots — body: {band_id?, start_date, end_date?, start_time, end_time, week_parity}
+     *
+     * An omitted or null `band_id` is a personal recurring slot: it belongs to
+     * the creator and to no band.
      *
      * `day_of_week` is derived from `start_date`'s weekday (per ADR 0001).
      * Re-checks for conflicts immediately before insert (via the same
@@ -28,13 +32,20 @@ final class RecurringSlotController
      */
     public static function store(array $body): array
     {
+        // Omitted or null means a personal booking — it belongs to the creator
+        // and to no band. Any other value must still name an existing band.
         $bandIdParam = $body['band_id'] ?? null;
+        $bandId = null;
 
-        if (!is_numeric($bandIdParam) || (int) $bandIdParam <= 0) {
-            return [
-                'status' => 400,
-                'body' => ['error' => 'band_id must be a positive integer'],
-            ];
+        if ($bandIdParam !== null) {
+            if (!is_numeric($bandIdParam) || (int) $bandIdParam <= 0) {
+                return [
+                    'status' => 400,
+                    'body' => ['error' => 'band_id must be a positive integer'],
+                ];
+            }
+
+            $bandId = (int) $bandIdParam;
         }
 
         $pattern = self::parsePattern($body);
@@ -43,9 +54,7 @@ final class RecurringSlotController
             return ['status' => 400, 'body' => ['error' => $pattern['error']]];
         }
 
-        $bandId = (int) $bandIdParam;
-
-        if ((new BandRepository(db()))->findById($bandId) === null) {
+        if ($bandId !== null && (new BandRepository(db()))->findById($bandId) === null) {
             return [
                 'status' => 400,
                 'body' => ['error' => 'band_id refers to an unknown band'],
@@ -74,6 +83,7 @@ final class RecurringSlotController
 
         $slot = (new RecurringSlotRepository(db()))->create(
             $bandId,
+            CurrentUser::ID,
             $pattern['dayOfWeek'],
             $pattern['startTime'],
             $pattern['endTime'],

@@ -3,23 +3,28 @@ export type WeekParity = 'odd' | 'even' | 'all'
 export interface AdHocOccurrence {
   source: 'ad_hoc'
   id: number
-  band_id: number
+  /** `null` means a personal occurrence: it belongs to its booker, not a band. */
+  band_id: number | null
   band_name: string | null
   start_time: string
   end_time: string
   booked_by_user_id: number
+  booked_by_user_name: string | null
 }
 
 export interface RecurringOccurrence {
   source: 'recurring'
   recurring_slot_id: number
-  band_id: number
+  /** `null` means a personal occurrence: it belongs to its booker, not a band. */
+  band_id: number | null
   band_name: string | null
   day_of_week: number
   date: string
   start_time: string
   end_time: string
   week_parity: WeekParity
+  booked_by_user_id: number
+  booked_by_user_name: string | null
 }
 
 export type CalendarOccurrence = AdHocOccurrence | RecurringOccurrence
@@ -38,7 +43,7 @@ export interface CalendarBooking {
   id: string
   start: string
   end: string
-  bandId: number
+  bandId: number | null
   title?: string
 }
 

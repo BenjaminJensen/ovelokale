@@ -55,6 +55,9 @@ function toCalendarBooking(occurrence: CalendarOccurrence): CalendarBooking {
     start: toLocalIso(occurrence.start_time),
     end: toLocalIso(occurrence.end_time),
     bandId: occurrence.band_id,
+    // A personal occurrence has no band to name, so it is labelled with its
+    // booker; RehearsalCalendar renders `title` in the neutral grey.
+    title: occurrence.band_id === null ? (occurrence.booked_by_user_name ?? undefined) : undefined,
   }
 }
 

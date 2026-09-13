@@ -14,7 +14,10 @@ use Exception;
 final class BookingController
 {
     /**
-     * POST /api/bookings — body: {band_id, start_time, end_time}
+     * POST /api/bookings — body: {band_id?, start_time, end_time}
+     *
+     * An omitted or null `band_id` is a personal booking: it belongs to the
+     * creator and to no band.
      *
      * Re-checks for conflicts immediately before insert (via the same
      * ConflictChecker the live client-side check uses, per ADR 0002), so a
@@ -27,13 +30,20 @@ final class BookingController
      */
     public static function store(array $body): array
     {
+        // Omitted or null means a personal booking — it belongs to the creator
+        // and to no band. Any other value must still name an existing band.
         $bandIdParam = $body['band_id'] ?? null;
+        $bandId = null;
 
-        if (!is_numeric($bandIdParam) || (int) $bandIdParam <= 0) {
-            return [
-                'status' => 400,
-                'body' => ['error' => 'band_id must be a positive integer'],
-            ];
+        if ($bandIdParam !== null) {
+            if (!is_numeric($bandIdParam) || (int) $bandIdParam <= 0) {
+                return [
+                    'status' => 400,
+                    'body' => ['error' => 'band_id must be a positive integer'],
+                ];
+            }
+
+            $bandId = (int) $bandIdParam;
         }
 
         $range = self::parseRange($body);
@@ -47,9 +57,7 @@ final class BookingController
         /** @var DateTimeImmutable $endTime */
         $endTime = $range['end'];
 
-        $bandId = (int) $bandIdParam;
-
-        if ((new BandRepository(db()))->findById($bandId) === null) {
+        if ($bandId !== null && (new BandRepository(db()))->findById($bandId) === null) {
             return [
                 'status' => 400,
                 'body' => ['error' => 'band_id refers to an unknown band'],

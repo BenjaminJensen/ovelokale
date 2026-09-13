@@ -10,7 +10,7 @@ final readonly class Booking
 {
     public function __construct(
         public int $id,
-        public int $bandId,
+        public ?int $bandId,
         public DateTimeImmutable $startTime,
         public DateTimeImmutable $endTime,
         public int $bookedByUserId,

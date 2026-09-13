@@ -80,7 +80,8 @@ const sortedBands = computed(() =>
 )
 
 const mode = ref<Mode>('adhoc')
-const bandId = ref<number>(props.ownBandIds[0] ?? props.bands[0]?.id ?? 0)
+/** `null` is the personal option — where a user who belongs to no band lands. */
+const bandId = ref<number | null>(props.ownBandIds[0] ?? null)
 const date = ref(toDateParam(props.initialStart))
 const endDate = ref('')
 const fromTime = ref(toTimeParam(props.initialStart))
@@ -159,7 +160,6 @@ watch(
 
 const canSubmit = computed(
   () =>
-    bandId.value > 0 &&
     isValidRange.value &&
     (mode.value === 'adhoc' || isValidEndDate.value) &&
     conflicts.value.length === 0 &&
@@ -168,7 +168,8 @@ const canSubmit = computed(
 )
 
 function conflictLabel(c: CalendarOccurrence | RecurringSlotConflict): string {
-  const band = c.band_name ?? 'Ukendt band'
+  // A personal occurrence has no band name — it is named by its booker.
+  const band = c.band_name ?? c.booked_by_user_name ?? 'Ukendt band'
 
   if (c.source === 'recurring_pattern') {
     return `${band}, hver ${DAY_NAMES[c.day_of_week]} ${c.start_time.slice(0, 5)}–${c.end_time.slice(0, 5)}`
@@ -248,6 +249,7 @@ async function submit(): Promise<void> {
         <label class="field">
           <span>Band</span>
           <select v-model.number="bandId" required>
+            <option :value="null">Ingen – personlig øvning</option>
             <option
               v-for="b in sortedBands"
               :key="b.id"
