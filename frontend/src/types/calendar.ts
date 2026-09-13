@@ -45,6 +45,8 @@ export interface CalendarBooking {
   end: string
   bandId: number | null
   title?: string
+  /** `true` when this occurrence comes from a recurring slot rather than an ad-hoc booking. */
+  recurring?: boolean
 }
 
 export interface CalendarBand {

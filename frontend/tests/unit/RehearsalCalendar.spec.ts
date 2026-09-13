@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
 import RehearsalCalendar from '../../src/components/RehearsalCalendar.vue'
 import { setViewportWidth } from '../setup'
+import type { CalendarBooking } from '../../src/types/calendar'
 
 /** Wednesday 16 September 2026 — pinned, so the week and its day picker always have the same shape. */
 const WEDNESDAY = new Date(2026, 8, 16)
@@ -127,5 +128,65 @@ describe('RehearsalCalendar at phone width', () => {
 
     expect(dayColumns(wrapper)).toHaveLength(7)
     expect(wrapper.find('.views button:last-child').text()).toBe('Uge')
+  })
+})
+
+describe('the recurring marker', () => {
+  const bands = [
+    { id: 1, name: 'Fast Band' },
+    { id: 2, name: 'Løs Band' },
+  ]
+
+  /** One of each source on the pinned week, so every assertion has its own control. */
+  const bookings: CalendarBooking[] = [
+    {
+      id: 'recurring:1:2026-09-16',
+      start: '2026-09-16T19:00:00',
+      end: '2026-09-16T21:00:00',
+      bandId: 1,
+      recurring: true,
+    },
+    {
+      id: 'ad_hoc:9',
+      start: '2026-09-17T19:00:00',
+      end: '2026-09-17T21:00:00',
+      bandId: 2,
+    },
+  ]
+
+  const mountWithBookings = () =>
+    mount(RehearsalCalendar, { props: { initialDate: WEDNESDAY, bookings, bands } })
+
+  it('marks only the recurring occurrence in the month grid', () => {
+    const wrapper = mountWithBookings()
+    const chips = wrapper.findAll('.chip')
+
+    expect(
+      chips
+        .find((c) => c.text().includes('Fast Band'))!
+        .find('.recurring-icon')
+        .exists(),
+    ).toBe(true)
+    expect(
+      chips
+        .find((c) => c.text().includes('Løs Band'))!
+        .find('.recurring-icon')
+        .exists(),
+    ).toBe(false)
+  })
+
+  it('marks only the recurring occurrence in the week view, and names the marker', async () => {
+    const wrapper = mountWithBookings()
+    await wrapper.find('.views button:last-child').trigger('click')
+    const blocks = wrapper.findAll('.block')
+
+    const recurring = blocks.find((b) => b.text().includes('Fast Band'))!
+    expect(recurring.find('.recurring-icon title').text()).toBe('Ugentlig gentagelse')
+    expect(
+      blocks
+        .find((b) => b.text().includes('Løs Band'))!
+        .find('.recurring-icon')
+        .exists(),
+    ).toBe(false)
   })
 })

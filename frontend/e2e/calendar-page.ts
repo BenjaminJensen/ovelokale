@@ -103,6 +103,19 @@ export function occurrenceIn(column: Locator, bandName: string): Locator {
   return column.getByRole('button', { name: bandName })
 }
 
+/** Every occurrence chip in the month grid. */
+export function monthChips(page: Page): Locator {
+  return page.locator('.m-cell .chip')
+}
+
+/**
+ * The repeat marker an occurrence carries when it comes from a recurring slot.
+ * Like the columns and blocks around it, it has no role of its own.
+ */
+export function recurringMarkerIn(occurrence: Locator): Locator {
+  return occurrence.locator('.recurring-icon')
+}
+
 /** The empty hour slot a user clicks to start a booking. */
 export function freeSlot(page: Page, dayIndex: number, date: string, hour: number): Locator {
   return freeSlotIn(dayColumn(page, dayIndex), date, hour)
