@@ -1,7 +1,7 @@
 ---
 name: implement
 description: Implement a single ticket produced by the to-tickets skill, on a fresh branch, running every check before committing.
-disable-model-invocation: true
+disable-model-invocation: false
 ---
 
 # Implement

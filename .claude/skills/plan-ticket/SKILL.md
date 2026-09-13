@@ -1,7 +1,7 @@
 ---
 name: plan-ticket
 description: Turn one refined ticket into a local implementation plan a fresh subagent can execute — the file-by-file sequence, the test mapping, and the exact checks — without re-exploring the codebase.
-disable-model-invocation: true
+disable-model-invocation: false
 ---
 
 # Plan Ticket
