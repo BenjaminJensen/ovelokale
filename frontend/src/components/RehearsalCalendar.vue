@@ -6,6 +6,7 @@
  * parent which date range is on screen, so the parent owns fetching.
  */
 import { computed, ref, watch } from 'vue'
+import { useIsPhone } from '@/composables/useIsPhone'
 import type { CalendarBand, CalendarBooking } from '@/types/calendar'
 
 interface Props {
@@ -69,9 +70,23 @@ function isoWeek(d: Date): number {
 
 /* ---------- view state ---------- */
 
-const view = ref(props.initialView)
+const isPhone = useIsPhone()
+
+/**
+ * A phone opens on the day view rather than on `initialView`'s month default:
+ * the week grid has no room for seven columns there, and the month view would
+ * put booking two taps away instead of one.
+ */
+const view = ref<'month' | 'week'>(isPhone.value ? 'week' : props.initialView)
 const cursor = ref(startOfDay(props.initialDate))
 const today = startOfDay(new Date())
+
+/**
+ * On a phone the week view renders a single day column. It stays the `'week'`
+ * view rather than becoming a third value, so `initialView`'s public union is
+ * unchanged and the month/week toggle keeps working the same way.
+ */
+const isDayMode = computed(() => isPhone.value && view.value === 'week')
 
 const dayNames = computed(() => {
   const fmt = new Intl.DateTimeFormat(props.locale, { weekday: 'short' })
@@ -79,7 +94,22 @@ const dayNames = computed(() => {
   return Array.from({ length: 7 }, (_, i) => fmt.format(addDays(monday, i)))
 })
 
+/** Danish month and weekday names are lowercase, so only the first letter is ever capitalised. */
+function capitalize(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1)
+}
+
 const periodLabel = computed(() => {
+  if (isDayMode.value) {
+    return capitalize(
+      new Intl.DateTimeFormat(props.locale, {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+      }).format(cursor.value),
+    )
+  }
+
   if (view.value === 'week') {
     const days = weekDays.value
     const a = days[0]!
@@ -87,15 +117,33 @@ const periodLabel = computed(() => {
     const month = new Intl.DateTimeFormat(props.locale, { month: 'long', year: 'numeric' })
     return `${a.getDate()}.–${b.getDate()}. ${month.format(b)}`
   }
-  return new Intl.DateTimeFormat(props.locale, { month: 'long', year: 'numeric' }).format(
-    cursor.value,
+
+  return capitalize(
+    new Intl.DateTimeFormat(props.locale, { month: 'long', year: 'numeric' }).format(cursor.value),
   )
 })
 
+const prevLabel = computed(() => {
+  if (isDayMode.value) return 'Forrige dag'
+  return view.value === 'week' ? 'Forrige uge' : 'Forrige måned'
+})
+
+const nextLabel = computed(() => {
+  if (isDayMode.value) return 'Næste dag'
+  return view.value === 'week' ? 'Næste uge' : 'Næste måned'
+})
+
+/** The week view is a day view on a phone, and the toggle says so. */
+const weekToggleLabel = computed(() => (isPhone.value ? 'Dag' : 'Uge'))
+
+/** The week `cursor` falls in — the week grid's columns, and the day picker's buttons. */
 const weekDays = computed(() => {
   const start = startOfWeek(cursor.value)
   return Array.from({ length: 7 }, (_, i) => addDays(start, i))
 })
+
+/** The day columns actually drawn: the whole week, or just the cursor's day on a phone. */
+const visibleDays = computed(() => (isDayMode.value ? [startOfDay(cursor.value)] : weekDays.value))
 
 /** Month grid: whole weeks covering the month, 4–6 rows. */
 const monthWeeks = computed(() => {
@@ -117,6 +165,13 @@ const hours = computed(() => {
 })
 
 const visibleRange = computed(() => {
+  if (isDayMode.value) {
+    // One day on screen is still one week fetched — CalendarPage resolves this
+    // range through `mondaysInRange` before it calls the API.
+    const day = startOfDay(cursor.value)
+    return { from: day, to: addDays(day, 1) }
+  }
+
   if (view.value === 'week') {
     const days = weekDays.value
     return { from: days[0]!, to: addDays(days[6]!, 1) }
@@ -130,6 +185,11 @@ const visibleRange = computed(() => {
 watch(visibleRange, (r) => emit('range-change', r), { immediate: true })
 
 function step(dir: number): void {
+  if (isDayMode.value) {
+    cursor.value = addDays(cursor.value, dir)
+    return
+  }
+
   cursor.value =
     view.value === 'week' ? addDays(cursor.value, 7 * dir) : addMonths(cursor.value, dir)
 }
@@ -143,6 +203,25 @@ function selectWeek(week: Date[]): void {
   cursor.value = week[0]!
   switchView('week')
 }
+
+/** Drill down into one date, from the month grid's date button or the day picker. */
+function selectDay(day: Date): void {
+  cursor.value = startOfDay(day)
+  switchView('week')
+}
+
+const dateFmt = computed(
+  () => new Intl.DateTimeFormat(props.locale, { day: 'numeric', month: 'long' }),
+)
+const weekdayDateFmt = computed(
+  () => new Intl.DateTimeFormat(props.locale, { weekday: 'long', day: 'numeric', month: 'long' }),
+)
+
+/** "Vis 17. september" — the month grid's date button, which sits next to its weekday column. */
+const showDateLabel = (d: Date): string => `Vis ${dateFmt.value.format(d)}`
+
+/** "Vis onsdag 17. september" — the day picker, where the weekday is the thing being picked. */
+const showDayLabel = (d: Date): string => `Vis ${weekdayDateFmt.value.format(d)}`
 
 /* ---------- bookings ---------- */
 
@@ -236,20 +315,8 @@ function newBooking(day: Date, hour: number): void {
   <div class="cal">
     <header class="bar">
       <div class="nav">
-        <button
-          class="icon"
-          :aria-label="view === 'week' ? 'Forrige uge' : 'Forrige måned'"
-          @click="step(-1)"
-        >
-          ‹
-        </button>
-        <button
-          class="icon"
-          :aria-label="view === 'week' ? 'Næste uge' : 'Næste måned'"
-          @click="step(1)"
-        >
-          ›
-        </button>
+        <button class="icon" :aria-label="prevLabel" @click="step(-1)">‹</button>
+        <button class="icon" :aria-label="nextLabel" @click="step(1)">›</button>
         <button class="ghost" @click="goToday">I dag</button>
       </div>
 
@@ -260,7 +327,9 @@ function newBooking(day: Date, hour: number): void {
 
       <div class="views" role="group" aria-label="Visning">
         <button :class="{ on: view === 'month' }" @click="switchView('month')">Måned</button>
-        <button :class="{ on: view === 'week' }" @click="switchView('week')">Uge</button>
+        <button :class="{ on: view === 'week' }" @click="switchView('week')">
+          {{ weekToggleLabel }}
+        </button>
       </div>
     </header>
 
@@ -287,7 +356,9 @@ function newBooking(day: Date, hour: number): void {
           }"
           @dblclick="newBooking(day, 19)"
         >
-          <span class="m-date">{{ day.getDate() }}</span>
+          <button class="m-date" :aria-label="showDateLabel(day)" @click.stop="selectDay(day)">
+            {{ day.getDate() }}
+          </button>
           <button
             v-for="b in bookingsOn(day)"
             :key="b.id"
@@ -304,18 +375,36 @@ function newBooking(day: Date, hour: number): void {
     </div>
 
     <!-- ---------------- week ---------------- -->
-    <div v-else class="week">
+    <div v-else class="week" :class="{ 'day-mode': isDayMode }">
       <div class="w-head">
         <div class="t-col wk-num">{{ isoWeek(weekDays[0]!) }}</div>
-        <div
-          v-for="(day, i) in weekDays"
-          :key="day.toISOString()"
-          class="w-head-cell"
-          :class="{ today: sameDay(day, today) }"
-        >
-          <span class="w-day">{{ dayNames[i] }}</span>
-          <span class="w-date">{{ day.getDate() }}</span>
-        </div>
+
+        <!-- On a phone the weekday strip is the day picker; on a desktop it is a label. -->
+        <template v-if="isDayMode">
+          <button
+            v-for="(day, i) in weekDays"
+            :key="day.toISOString()"
+            class="w-head-cell picker"
+            :class="{ today: sameDay(day, today), selected: sameDay(day, cursor) }"
+            :aria-label="showDayLabel(day)"
+            :aria-pressed="sameDay(day, cursor)"
+            @click="selectDay(day)"
+          >
+            <span class="w-day">{{ dayNames[i] }}</span>
+            <span class="w-date">{{ day.getDate() }}</span>
+          </button>
+        </template>
+        <template v-else>
+          <div
+            v-for="(day, i) in weekDays"
+            :key="day.toISOString()"
+            class="w-head-cell"
+            :class="{ today: sameDay(day, today) }"
+          >
+            <span class="w-day">{{ dayNames[i] }}</span>
+            <span class="w-date">{{ day.getDate() }}</span>
+          </div>
+        </template>
       </div>
 
       <div class="w-body">
@@ -324,7 +413,7 @@ function newBooking(day: Date, hour: number): void {
         </div>
 
         <div
-          v-for="day in weekDays"
+          v-for="day in visibleDays"
           :key="day.toISOString()"
           class="w-col"
           :class="{ today: sameDay(day, today) }"
@@ -361,6 +450,9 @@ function newBooking(day: Date, hour: number): void {
   --muted: #6b7280;
   --rail: #f5f6f8;
   --today: #b4530a;
+  /* The two gutter widths, shared so the grids that must line up cannot drift. */
+  --wk-col: 42px;
+  --t-col: 56px;
   color: var(--ink);
   font-family: ui-sans-serif, system-ui, 'Segoe UI', Roboto, sans-serif;
   font-size: 14px;
@@ -388,7 +480,6 @@ function newBooking(day: Date, hour: number): void {
   font-size: 17px;
   font-weight: 600;
   letter-spacing: -0.01em;
-  text-transform: capitalize;
   display: flex;
   align-items: baseline;
   gap: 10px;
@@ -444,7 +535,13 @@ button:focus-visible {
 .m-head,
 .m-row {
   display: grid;
-  grid-template-columns: 42px repeat(7, 1fr);
+  /*
+   * `minmax(0, 1fr)`, not `1fr`: the chips inside a cell are `nowrap`, and a
+   * plain `1fr` track never shrinks below its content, so a long band name
+   * widens its column and pushes the whole grid past the calendar's edge.
+   * With a zero minimum the columns stay equal and the chip ellipsises.
+   */
+  grid-template-columns: var(--wk-col) repeat(7, minmax(0, 1fr));
 }
 .m-head {
   border-bottom: 1px solid var(--line);
@@ -476,6 +573,7 @@ button:focus-visible {
   border-top: 1px solid var(--line-soft);
 }
 .m-cell {
+  min-width: 0;
   min-height: 96px;
   padding: 4px;
   border-right: 1px solid var(--line-soft);
@@ -494,14 +592,20 @@ button:focus-visible {
   background: #fafbfc;
 }
 .m-date {
+  align-self: flex-start;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
   font-variant-numeric: tabular-nums;
   padding: 2px 4px;
 }
-.m-cell.today .m-date {
+.m-date:hover {
+  background: var(--line-soft);
+}
+.m-cell.today .m-date,
+.m-cell.today .m-date:hover {
   background: var(--today);
   color: #fff;
-  border-radius: 3px;
-  align-self: flex-start;
   font-weight: 600;
 }
 .chip {
@@ -531,7 +635,7 @@ button:focus-visible {
 /* week */
 .w-head {
   display: grid;
-  grid-template-columns: 56px repeat(7, 1fr);
+  grid-template-columns: var(--t-col) repeat(7, minmax(0, 1fr));
   border-bottom: 1px solid var(--line);
   background: var(--rail);
 }
@@ -540,6 +644,7 @@ button:focus-visible {
   display: flex;
   align-items: baseline;
   gap: 6px;
+  min-width: 0;
   border-left: 1px solid var(--line-soft);
 }
 .w-day {
@@ -554,6 +659,30 @@ button:focus-visible {
 .w-head-cell.today .w-date {
   color: var(--today);
 }
+
+/* The picker cells are buttons, so they have to shed the component's button styling. */
+.w-head-cell.picker {
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  border: 0;
+  border-left: 1px solid var(--line-soft);
+  border-radius: 0;
+  background: transparent;
+  padding: 6px 2px;
+}
+.w-head-cell.picker:hover {
+  background: var(--line-soft);
+}
+.w-head-cell.picker.selected,
+.w-head-cell.picker.selected:hover {
+  background: var(--ink);
+}
+.w-head-cell.picker.selected .w-day,
+.w-head-cell.picker.selected .w-date {
+  color: #fff;
+}
 .wk-num {
   display: flex;
   align-items: center;
@@ -564,9 +693,14 @@ button:focus-visible {
 }
 .w-body {
   display: grid;
-  grid-template-columns: 56px repeat(7, 1fr);
+  grid-template-columns: var(--t-col) repeat(7, minmax(0, 1fr));
   max-height: 620px;
   overflow-y: auto;
+}
+
+/* Day mode: one day column under a seven-day picker, so only the body changes. */
+.week.day-mode .w-body {
+  grid-template-columns: var(--t-col) minmax(0, 1fr);
 }
 .t-col {
   background: var(--rail);
@@ -626,7 +760,50 @@ button:focus-visible {
   font-variant-numeric: tabular-nums;
 }
 
-@media (max-width: 720px) {
+/*
+ * Phone. Mirrors PHONE_QUERY in src/composables/useIsPhone.ts, which is what
+ * switches the week view to a single day column — change the two together.
+ */
+@media (max-width: 639px) {
+  .cal {
+    --wk-col: 34px;
+    --t-col: 48px;
+  }
+
+  /* Too many controls for one row: the period gets its own line above them. */
+  .bar {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 8px;
+  }
+  .period {
+    order: -1;
+    flex: 1 0 100%;
+    font-size: 16px;
+  }
+  .nav {
+    flex: 1;
+    gap: 6px;
+  }
+
+  /* Touch targets. */
+  .icon {
+    width: 44px;
+    height: 44px;
+    font-size: 20px;
+  }
+  .ghost,
+  .views button {
+    min-height: 44px;
+  }
+  .w-head-cell.picker {
+    min-height: 48px;
+  }
+  .m-date {
+    min-width: 28px;
+    min-height: 28px;
+  }
+
   .m-cell {
     min-height: 68px;
   }
@@ -636,6 +813,14 @@ button:focus-visible {
   }
   .chip-time {
     display: none;
+  }
+
+  /*
+   * Keep the toolbar and day picker on screen while the hours scroll under
+   * them, instead of letting a 24-hour grid push the page 1100px tall.
+   */
+  .w-body {
+    max-height: max(320px, calc(100dvh - 230px));
   }
 }
 </style>

@@ -1,0 +1,13 @@
+/*
+ * The only global stylesheet. Everything else is scoped to its component.
+ *
+ * Deliberately no `box-sizing: border-box` reset: `.t-label` and `.slot` in
+ * RehearsalCalendar set their own, and flipping the default globally would
+ * silently change the width of every padded element in the app.
+ */
+body {
+  margin: 0;
+  background: #fff;
+  color: #16181d;
+  font-family: ui-sans-serif, system-ui, 'Segoe UI', Roboto, sans-serif;
+}

@@ -24,6 +24,16 @@ export async function openWeekView(page: Page): Promise<void> {
   await expect(weekBadge(page)).toBeVisible()
 }
 
+/**
+ * At phone width the calendar already opens on the day view (a week view that
+ * renders one column), so unlike `openWeekView` there is no toggle to click.
+ */
+export async function openDayView(page: Page): Promise<void> {
+  await page.goto('/')
+  await expect(page.getByRole('heading', { name: 'Ovelokale' })).toBeVisible()
+  await expect(weekBadge(page)).toBeVisible()
+}
+
 /** The "Uge 37" badge next to the period heading — the week view's identity. */
 export function weekBadge(page: Page): Locator {
   return page.getByText(/^Uge \d+$/)
@@ -33,9 +43,44 @@ export async function goToNextWeek(page: Page): Promise<void> {
   await page.getByRole('button', { name: 'Næste uge' }).click()
 }
 
+/** Every day column on screen: seven in the week view, one in the phone day view. */
+export function dayColumns(page: Page): Locator {
+  return page.locator('.w-col')
+}
+
 /** One day column of the week view; 0 = Monday .. 6 = Sunday. */
 export function dayColumn(page: Page, dayIndex: number): Locator {
-  return page.locator('.w-col').nth(dayIndex)
+  return dayColumns(page).nth(dayIndex)
+}
+
+/** The day view's only column — the day the phone's day picker currently has selected. */
+export function shownDayColumn(page: Page): Locator {
+  return dayColumns(page).first()
+}
+
+/** One weekday button of the phone day picker; 0 = Monday .. 6 = Sunday. */
+export function dayPickerButton(page: Page, dayIndex: number): Locator {
+  return page.locator('.picker').nth(dayIndex)
+}
+
+/** Whether the page scrolls sideways — the thing a too-wide grid does to a phone. */
+export function hasHorizontalOverflow(page: Page): Promise<boolean> {
+  return page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)
+}
+
+/**
+ * Today's date number in the month grid — a button that opens that date in the
+ * week (day, on a phone) view. Today is used rather than an arbitrary date
+ * because a month grid also renders its neighbours' days, so a bare day number
+ * is not unique; `.today` is.
+ */
+export function todayDateButton(page: Page): Locator {
+  return page.locator('.m-cell.today .m-date')
+}
+
+/** The day the phone's day picker has selected. */
+export function selectedDayButton(page: Page): Locator {
+  return page.locator('.picker[aria-pressed="true"]')
 }
 
 /** Every occurrence drawn in a day column. */
@@ -50,12 +95,22 @@ export function conflictingOccurrencesIn(page: Page, dayIndex: number): Locator 
 
 /** The occurrence a given band has in a given day column. */
 export function occurrenceFor(page: Page, dayIndex: number, bandName: string): Locator {
-  return dayColumn(page, dayIndex).getByRole('button', { name: bandName })
+  return occurrenceIn(dayColumn(page, dayIndex), bandName)
+}
+
+/** As `occurrenceFor`, but against a column you already have — the day view has only one. */
+export function occurrenceIn(column: Locator, bandName: string): Locator {
+  return column.getByRole('button', { name: bandName })
 }
 
 /** The empty hour slot a user clicks to start a booking. */
 export function freeSlot(page: Page, dayIndex: number, date: string, hour: number): Locator {
-  return dayColumn(page, dayIndex).getByRole('button', {
+  return freeSlotIn(dayColumn(page, dayIndex), date, hour)
+}
+
+/** As `freeSlot`, but against a column you already have. */
+export function freeSlotIn(column: Locator, date: string, hour: number): Locator {
+  return column.getByRole('button', {
     name: `Book ${dayOfMonth(date)}. kl. ${hour}`,
     exact: true,
   })

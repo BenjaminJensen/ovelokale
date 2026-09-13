@@ -25,6 +25,8 @@ export default defineConfig({
   },
   test: {
     environment: 'jsdom',
+    // jsdom has no matchMedia; the setup file stubs it. See tests/setup.ts.
+    setupFiles: ['./tests/setup.ts'],
     // Unit tests only. The Playwright specs under `e2e/` share the `.spec.ts`
     // suffix but need a real browser, and Vitest would otherwise collect them.
     include: ['tests/**/*.spec.ts'],

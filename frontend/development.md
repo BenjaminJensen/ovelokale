@@ -55,6 +55,13 @@ docker compose exec frontend npm run test:watch
 
 Add new tests under `tests/unit`.
 
+`tests/setup.ts` runs before every unit test file. It exists because jsdom
+implements no `window.matchMedia` at all, and `useIsPhone` — which decides
+whether the calendar renders a week or a single day — calls it. The stub
+understands `(max-width: <n>px)` queries and exports `setViewportWidth(px)`, so
+a unit test can assert phone behaviour and even resize mid-test; the width
+resets to 1440 between tests.
+
 ## Browser testing (Playwright)
 
 Vitest renders into jsdom, which has no layout and no paint: it can tell you a
@@ -107,6 +114,21 @@ Sunday empty for the specs that create bookings.
 It writes a JSON manifest to stdout, which `scripts/e2e.sh` captures as
 `frontend/e2e/.fixture.json`; the specs read dates and band names from there
 rather than recomputing the same date maths in TypeScript.
+
+### Viewports
+
+The app has one breakpoint, **639px** (ADR 0005): below it the week view
+collapses to a single day column with a day picker and the booking dialog
+becomes a bottom sheet; at 640px and up — an iPad included — the desktop layout
+applies unchanged. The threshold lives in `PHONE_QUERY`
+(`src/composables/useIsPhone.ts`) _and_ in `@media (max-width: 639px)` blocks in
+`App.vue`, `RehearsalCalendar.vue` and `BookingDialog.vue`. CSS cannot read the
+constant, so change all four together.
+
+`e2e/responsive.spec.ts` runs the core journey at three viewports — phone
+390×844, tablet 820×1180, desktop 1440×1000 — via `test.use({ viewport })`, and
+captures a screenshot of each. The rest of the suite stays on the desktop
+viewport from `playwright.config.ts`.
 
 ### Debugging a failing spec
 
