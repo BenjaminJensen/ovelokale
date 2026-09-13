@@ -22,6 +22,10 @@ Given an issue number/URL, fetch it with `gh issue view <number> --json title,bo
 
 Confirm every ticket in its "Blocked by" line is actually done (issue closed, or local file's checkboxes complete) — a ticket with open blockers is not on the frontier yet. If a blocker isn't done, stop and tell the user rather than guessing at the missing behaviour.
 
+Then look for an implementation plan: `.scratch/issue-<N>/plan.md` for a GitHub issue, or `.scratch/<feature-slug>/plans/<NN>-<slug>.md` beside a local ticket file. If one exists, read it — [plan-ticket](../plan-ticket/SKILL.md) already worked out the file-by-file sequence, the test mapping and the check commands against the code, so you don't have to rediscover them. If there's no plan, explore and sequence the work yourself as normal; a plan is an accelerator, not a prerequisite.
+
+The ticket always wins. A plan is a disposable note written against the code as it looked when it was planned, so where the two disagree, or where the plan has simply gone stale, follow the ticket and say what you changed.
+
 ### 2. Branch
 
 From an up-to-date `main`, create a branch. Follow the repo's existing naming convention (`feature/<slug>`, `frontend/<slug>`, `backend/<slug>` — see `git log`): pick the prefix matching the layer(s) the ticket touches, `feature/` when it spans both.
@@ -37,7 +41,7 @@ Read whichever apply before writing code — they hold the exact container comma
 
 ### 4. Implement
 
-Build exactly what the ticket's "What to build" / acceptance criteria describe — no more. Use the project's domain glossary vocabulary (`CONTEXT.md`) and respect existing ADRs (`docs/adr/`).
+Build exactly what the ticket's "What to build" / acceptance criteria describe — no more. Working from a plan, follow its step order: it's sequenced to keep the tree buildable at each boundary, so a failure points at the step that caused it. Use the project's domain glossary vocabulary (`CONTEXT.md`) and respect existing ADRs (`docs/adr/`).
 
 If implementation surfaces a term that conflicts with the glossary, an undefined term, or a hard-to-reverse decision with a real trade-off behind it, invoke the [domain-modeling](../domain-modeling/SKILL.md) skill to update `CONTEXT.md` or write an ADR before moving on — don't let that knowledge live only in code.
 

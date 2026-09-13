@@ -13,6 +13,9 @@ export default defineConfig({
   server: {
     host: true,
     port: 5173,
+    // The `playwright` container reaches the dev server by its compose service
+    // name, and Vite answers 403 to any Host header it doesn't recognise.
+    allowedHosts: ['frontend'],
     proxy: {
       '/api': {
         target: 'http://web:80',
@@ -22,5 +25,8 @@ export default defineConfig({
   },
   test: {
     environment: 'jsdom',
+    // Unit tests only. The Playwright specs under `e2e/` share the `.spec.ts`
+    // suffix but need a real browser, and Vitest would otherwise collect them.
+    include: ['tests/**/*.spec.ts'],
   },
 })

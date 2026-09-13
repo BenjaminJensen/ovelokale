@@ -1,2 +1,6 @@
 dist
 node_modules
+e2e/.fixture.json
+e2e-screenshots
+playwright-report
+test-results

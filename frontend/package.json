@@ -10,6 +10,7 @@
     "typecheck": "vue-tsc -b --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:e2e": "playwright test",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
@@ -20,6 +21,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "1.63.0",
     "@tsconfig/node20": "^20.1.4",
     "@types/node": "^20.19.43",
     "@vitejs/plugin-vue": "^6.0.8",

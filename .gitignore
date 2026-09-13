@@ -3,3 +3,12 @@ node_modules/
 vendor/
 frontend/dist/
 .php-cs-fixer.cache
+
+# Playwright: run artefacts, never committed
+frontend/e2e/.fixture.json
+frontend/e2e-screenshots/
+frontend/playwright-report/
+frontend/test-results/
+
+# Local ticket plans and scratch tickets, per the plan-ticket/to-tickets skills
+.scratch/

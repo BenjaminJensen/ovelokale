@@ -6,7 +6,13 @@ import globals from 'globals'
 
 export default tseslint.config(
   {
-    ignores: ['dist/**', 'node_modules/**'],
+    ignores: [
+      'dist/**',
+      'node_modules/**',
+      'playwright-report/**',
+      'test-results/**',
+      'e2e-screenshots/**',
+    ],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,
@@ -26,7 +32,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ['tests/**/*.ts'],
+    files: ['tests/**/*.ts', 'e2e/**/*.ts', 'playwright.config.ts'],
     languageOptions: {
       globals: globals.node,
     },
