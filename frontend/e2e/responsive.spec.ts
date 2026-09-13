@@ -18,9 +18,11 @@ import {
   dialog,
   freeSlotIn,
   hasHorizontalOverflow,
+  monthChips,
   occurrenceIn,
   openDayView,
   openWeekView,
+  recurringMarkerIn,
   scrollWeekToHour,
   selectedDayButton,
   shownDayColumn,
@@ -110,6 +112,29 @@ test.describe('phone', () => {
 
     await expect(dayColumns(page)).toHaveCount(1)
     await expect(selectedDayButton(page)).toContainText(dayNumber)
+  })
+
+  test('keeps the recurring marker in the day view and drops it from the month chips', async ({
+    page,
+  }) => {
+    const recurring = fixture.recurring.bounded
+
+    await openDayView(page)
+    await showDay(page, recurring.day_index)
+
+    const occurrence = occurrenceIn(shownDayColumn(page), recurring.band)
+    await expect(recurringMarkerIn(occurrence)).toBeVisible()
+
+    await scrollWeekToHour(page, 15)
+    await capture(page, 'phone-recurring-occurrence')
+
+    await page.getByRole('button', { name: 'Måned', exact: true }).click()
+
+    // Rendered but hidden: a month chip at this width has barely room for a
+    // truncated band name, so the marker gives its pixels up to the name.
+    const markers = recurringMarkerIn(monthChips(page))
+    expect(await markers.count()).toBeGreaterThan(0)
+    await expect(markers.first()).toBeHidden()
   })
 
   test('books a free slot from the day view', async ({ page }) => {

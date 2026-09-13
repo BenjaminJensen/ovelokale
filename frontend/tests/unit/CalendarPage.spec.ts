@@ -104,6 +104,54 @@ describe('CalendarPage', () => {
     expect(chip.attributes('style')).toContain('#6B7280')
   })
 
+  it('marks an occurrence that comes from a recurring slot', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => {
+        if (url.startsWith('/api/bands')) {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({ bands: [{ id: 1, name: 'The Wailers' }] }),
+          }
+        }
+
+        const weekStart = new URL(url, 'http://localhost').searchParams.get('week_start')!
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            week_start: weekStart,
+            week_end: weekStart,
+            iso_week_number: 1,
+            iso_year: 2026,
+            week_parity: 'odd',
+            bookings: [
+              {
+                source: 'recurring',
+                recurring_slot_id: 3,
+                band_id: 1,
+                band_name: 'The Wailers',
+                day_of_week: 1,
+                date: weekStart,
+                start_time: `${weekStart} 19:00:00`,
+                end_time: `${weekStart} 21:00:00`,
+                week_parity: 'all',
+                booked_by_user_id: 1,
+                booked_by_user_name: 'Testbruger Et',
+              },
+            ],
+          }),
+        }
+      }),
+    )
+
+    const wrapper = mount(CalendarPage)
+    await flushPromises()
+
+    expect(wrapper.find('.chip .recurring-icon').exists()).toBe(true)
+  })
+
   it('opens the booking dialog on an empty-slot click and adds the booking to the calendar on success, without a page reload', async () => {
     vi.stubGlobal(
       'fetch',

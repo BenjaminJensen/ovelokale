@@ -6,15 +6,25 @@ export function toDateParam(d: Date): string {
   return `${y}-${m}-${day}`
 }
 
+/** The Monday of `d`'s week, in local time. */
+function mondayOf(d: Date): Date {
+  const shift = (d.getDay() + 6) % 7
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate() - shift)
+}
+
 /**
- * Every Monday from `from` (inclusive) up to `to` (exclusive), stepping 7
- * days at a time. RehearsalCalendar.vue's `range-change` always emits whole
- * Mon-Sun weeks in both week and month view, so this covers exactly the set
- * of `week_start` values that need fetching.
+ * Every Monday whose week overlaps `from` (inclusive) to `to` (exclusive) —
+ * exactly the set of `week_start` values that need fetching.
+ *
+ * It starts from the Monday of `from`'s week rather than `from` itself. The
+ * week and month views emit whole Mon-Sun ranges, but the phone's day view
+ * emits a single day, and `/api/calendar` reads `week_start` as the first day
+ * of the week it resolves recurring slots against: handed a Thursday, it
+ * returns that Thursday's recurring occurrences dated on the following Sunday.
  */
 export function mondaysInRange(from: Date, to: Date): Date[] {
   const mondays: Date[] = []
-  let cursor = new Date(from.getFullYear(), from.getMonth(), from.getDate())
+  let cursor = mondayOf(from)
   while (cursor < to) {
     mondays.push(cursor)
     cursor = new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate() + 7)

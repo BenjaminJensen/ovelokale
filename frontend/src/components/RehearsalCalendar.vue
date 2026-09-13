@@ -7,6 +7,7 @@
  */
 import { computed, ref, watch } from 'vue'
 import { useIsPhone } from '@/composables/useIsPhone'
+import RecurringIcon from '@/components/RecurringIcon.vue'
 import type { CalendarBand, CalendarBooking } from '@/types/calendar'
 
 interface Props {
@@ -368,6 +369,7 @@ function newBooking(day: Date, hour: number): void {
             @click.stop="emit('select', b)"
           >
             <span class="chip-time">{{ clock(b.startAt) }}</span>
+            <RecurringIcon v-if="b.recurring" class="mark" />
             {{ band(b).name }}
           </button>
         </div>
@@ -433,7 +435,10 @@ function newBooking(day: Date, hour: number): void {
             :style="blockStyle(b, day)"
             @click.stop="emit('select', b)"
           >
-            <span class="b-band">{{ band(b).name }}</span>
+            <span class="b-band">
+              <RecurringIcon v-if="b.recurring" class="mark" />
+              {{ band(b).name }}
+            </span>
             <span class="b-time">{{ clock(b.startAt) }}–{{ clock(b.endAt) }}</span>
           </button>
         </div>
@@ -626,6 +631,15 @@ button:focus-visible {
   font-variant-numeric: tabular-nums;
   margin-right: 4px;
 }
+
+/*
+ * The recurring marker reads as metadata about the occurrence, not as part of
+ * the band's name, so it takes the same muted grey as the times do.
+ */
+.mark {
+  color: var(--muted);
+  margin-right: 2px;
+}
 .chip.clash,
 .block.clash {
   outline: 2px solid #dc2626;
@@ -811,7 +825,14 @@ button:focus-visible {
   .w-day {
     font-size: 11px;
   }
-  .chip-time {
+  /*
+   * A month chip is barely wide enough for a truncated band name at this
+   * width, so neither the time nor the recurring marker earns the characters
+   * it costs. The day view below — which is what a phone actually reads
+   * occurrences in — still shows both.
+   */
+  .chip-time,
+  .chip .mark {
     display: none;
   }
 

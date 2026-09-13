@@ -6,6 +6,7 @@ import {
   occurrenceFor,
   occurrencesIn,
   openWeekView,
+  recurringMarkerIn,
   scrollWeekToHour,
   weekBadge,
 } from './calendar-page'
@@ -33,6 +34,14 @@ test('the week view draws every seeded occurrence in its own day column', async 
   // Both parity slots share a weekday; only the one matching this week's parity shows.
   await expect(occurrenceFor(page, anchorParity.day_index, anchorParity.band)).toBeVisible()
   await expect(occurrenceFor(page, otherParity.day_index, otherParity.band)).toHaveCount(0)
+
+  // The repeat marker separates the two sources at a glance.
+  await expect(
+    recurringMarkerIn(occurrenceFor(page, bounded.day_index, bounded.band)),
+  ).toBeVisible()
+  await expect(recurringMarkerIn(occurrenceFor(page, midweek.day_index, midweek.band))).toHaveCount(
+    0,
+  )
 
   await scrollWeekToHour(page, 12)
   await capture(page, 'week-view')
