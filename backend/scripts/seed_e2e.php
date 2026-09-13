@@ -138,13 +138,14 @@ try {
     }
 
     $insertSlot = $pdo->prepare(
-        'INSERT INTO recurring_slots (band_id, day_of_week, start_time, end_time, week_parity, start_date, end_date)
-         VALUES (:band_id, :day_of_week, :start_time, :end_time, :week_parity, :start_date, :end_date)'
+        'INSERT INTO recurring_slots (band_id, booked_by_user_id, day_of_week, start_time, end_time, week_parity, start_date, end_date)
+         VALUES (:band_id, :booked_by_user_id, :day_of_week, :start_time, :end_time, :week_parity, :start_date, :end_date)'
     );
 
     foreach ($recurring as $slot) {
         $insertSlot->execute([
             ':band_id' => $slot['band'],
+            ':booked_by_user_id' => 1,
             ':day_of_week' => $slot['day_index'] + 1,
             ':start_time' => "{$slot['start']}:00",
             ':end_time' => "{$slot['end']}:00",

@@ -1,7 +1,8 @@
 import type { AdHocOccurrence, CalendarOccurrence } from '@/types/calendar'
 
 export interface CreateBookingPayload {
-  bandId: number
+  /** `null` books personally: the booking belongs to the creator, not a band. */
+  bandId: number | null
   /** Naive local datetime, `Y-m-d H:i:s`. */
   startTime: string
   /** Naive local datetime, `Y-m-d H:i:s`. */

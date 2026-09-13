@@ -80,13 +80,86 @@ test('a same-band overlap still conflicts, per ADR 0002', function () {
     expect($result['status'])->toBe(409);
 });
 
-test('rejects a missing band_id', function () {
+test('creates a personal booking when band_id is omitted', function () {
     $result = BookingController::store([
         'start_time' => '2026-09-09 19:00:00',
         'end_time' => '2026-09-09 21:00:00',
     ]);
 
+    expect($result['status'])->toBe(201);
+    expect($result['body']['booking'])->toMatchArray([
+        'source' => 'ad_hoc',
+        'band_id' => null,
+        'band_name' => null,
+        'booked_by_user_id' => 1,
+        'booked_by_user_name' => 'Stub User',
+    ]);
+
+    $statement = db()->query('SELECT * FROM bookings');
+
+    if ($statement === false) {
+        throw new RuntimeException('Query failed.');
+    }
+
+    $row = $statement->fetch(PDO::FETCH_ASSOC);
+    expect($row)->not->toBeFalse();
+    expect($row['band_id'])->toBeNull();
+    expect((int) $row['booked_by_user_id'])->toBe(1);
+});
+
+test('creates a personal booking when band_id is explicitly null', function () {
+    $result = BookingController::store([
+        'band_id' => null,
+        'start_time' => '2026-09-09 19:00:00',
+        'end_time' => '2026-09-09 21:00:00',
+    ]);
+
+    expect($result['status'])->toBe(201);
+    expect($result['body']['booking'])->toMatchArray([
+        'band_id' => null,
+        'booked_by_user_id' => 1,
+    ]);
+    expect(bookingCount())->toBe(1);
+});
+
+test('rejects a personal booking that conflicts with an existing band booking', function () {
+    db()->exec("INSERT INTO bookings (band_id, start_time, end_time, booked_by_user_id)
+        VALUES (2, '2026-09-09 19:00:00', '2026-09-09 21:00:00', 1)");
+
+    $result = BookingController::store([
+        'start_time' => '2026-09-09 20:00:00',
+        'end_time' => '2026-09-09 22:00:00',
+    ]);
+
+    expect($result['status'])->toBe(409);
+    expect($result['body']['conflicts'])->toHaveCount(1);
+    expect($result['body']['conflicts'][0])->toMatchArray(['band_id' => 2]);
+    expect(bookingCount())->toBe(1);
+});
+
+test('rejects a non-numeric band_id', function () {
+    $result = BookingController::store([
+        'band_id' => 'not-a-band',
+        'start_time' => '2026-09-09 19:00:00',
+        'end_time' => '2026-09-09 21:00:00',
+    ]);
+
     expect($result['status'])->toBe(400);
+    expect(bookingCount())->toBe(0);
+});
+
+test('rejects a zero or negative band_id', function () {
+    foreach ([0, -1] as $bandId) {
+        $result = BookingController::store([
+            'band_id' => $bandId,
+            'start_time' => '2026-09-09 19:00:00',
+            'end_time' => '2026-09-09 21:00:00',
+        ]);
+
+        expect($result['status'])->toBe(400);
+    }
+
+    expect(bookingCount())->toBe(0);
 });
 
 test('rejects a band_id that does not exist', function () {

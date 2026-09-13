@@ -15,7 +15,7 @@ final readonly class BookingRepository
     }
 
     public function create(
-        int $bandId,
+        ?int $bandId,
         DateTimeImmutable $startTime,
         DateTimeImmutable $endTime,
         int $bookedByUserId,
@@ -24,7 +24,7 @@ final readonly class BookingRepository
             'INSERT INTO bookings (band_id, start_time, end_time, booked_by_user_id)
              VALUES (:band_id, :start_time, :end_time, :booked_by_user_id)'
         );
-        $statement->bindValue(':band_id', $bandId, PDO::PARAM_INT);
+        $statement->bindValue(':band_id', $bandId, $bandId === null ? PDO::PARAM_NULL : PDO::PARAM_INT);
         $statement->bindValue(':start_time', $startTime->format('Y-m-d H:i:s'));
         $statement->bindValue(':end_time', $endTime->format('Y-m-d H:i:s'));
         $statement->bindValue(':booked_by_user_id', $bookedByUserId, PDO::PARAM_INT);
@@ -53,7 +53,7 @@ final readonly class BookingRepository
         $statement->bindValue(':id', $id, PDO::PARAM_INT);
         $statement->execute();
 
-        /** @var array{id: string, band_id: string, start_time: string, end_time: string, booked_by_user_id: string, booked_by_user_name: ?string, band_name: ?string}|false $row */
+        /** @var array{id: string, band_id: ?string, start_time: string, end_time: string, booked_by_user_id: string, booked_by_user_name: ?string, band_name: ?string}|false $row */
         $row = $statement->fetch(PDO::FETCH_ASSOC);
 
         if ($row === false) {
@@ -96,7 +96,7 @@ final readonly class BookingRepository
 
         $bookings = [];
 
-        /** @var array{id: string, band_id: string, start_time: string, end_time: string, booked_by_user_id: string, booked_by_user_name: ?string, band_name: ?string} $row */
+        /** @var array{id: string, band_id: ?string, start_time: string, end_time: string, booked_by_user_id: string, booked_by_user_name: ?string, band_name: ?string} $row */
         foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
             $bookings[] = self::fromRow($row);
         }
@@ -129,7 +129,7 @@ final readonly class BookingRepository
 
         $bookings = [];
 
-        /** @var array{id: string, band_id: string, start_time: string, end_time: string, booked_by_user_id: string, booked_by_user_name: ?string, band_name: ?string} $row */
+        /** @var array{id: string, band_id: ?string, start_time: string, end_time: string, booked_by_user_id: string, booked_by_user_name: ?string, band_name: ?string} $row */
         foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
             $bookings[] = self::fromRow($row);
         }
@@ -175,7 +175,7 @@ final readonly class BookingRepository
 
         $bookings = [];
 
-        /** @var array{id: string, band_id: string, start_time: string, end_time: string, booked_by_user_id: string, booked_by_user_name: ?string, band_name: ?string} $row */
+        /** @var array{id: string, band_id: ?string, start_time: string, end_time: string, booked_by_user_id: string, booked_by_user_name: ?string, band_name: ?string} $row */
         foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
             $bookings[] = self::fromRow($row);
         }
@@ -184,13 +184,13 @@ final readonly class BookingRepository
     }
 
     /**
-     * @param array{id: string, band_id: string, start_time: string, end_time: string, booked_by_user_id: string, booked_by_user_name: ?string, band_name: ?string} $row
+     * @param array{id: string, band_id: ?string, start_time: string, end_time: string, booked_by_user_id: string, booked_by_user_name: ?string, band_name: ?string} $row
      */
     private static function fromRow(array $row): Booking
     {
         return new Booking(
             id: (int) $row['id'],
-            bandId: (int) $row['band_id'],
+            bandId: $row['band_id'] === null ? null : (int) $row['band_id'],
             startTime: new DateTimeImmutable($row['start_time']),
             endTime: new DateTimeImmutable($row['end_time']),
             bookedByUserId: (int) $row['booked_by_user_id'],

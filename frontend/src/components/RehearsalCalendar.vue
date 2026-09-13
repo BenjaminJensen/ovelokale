@@ -157,7 +157,11 @@ const bandMap = computed(() => {
 })
 
 function band(booking: CalendarBooking): { name: string; color: string } {
-  return bandMap.value.get(booking.bandId) ?? { name: booking.title ?? 'Booked', color: '#6B7280' }
+  // A personal occurrence has no band id to look up — it falls straight
+  // through to its own title (the booker's name) in the neutral grey.
+  const fallback = { name: booking.title ?? 'Booked', color: '#6B7280' }
+  if (booking.bandId === null) return fallback
+  return bandMap.value.get(booking.bandId) ?? fallback
 }
 
 const parsed = computed<ParsedBooking[]>(() =>

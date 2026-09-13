@@ -226,6 +226,165 @@ describe('BookingDialog', () => {
     expect(wrapper.emitted('recurring-slot-created')).toHaveLength(1)
   })
 
+  it('offers the personal option in both ad-hoc and recurring mode', async () => {
+    stubFetch(async () => ({ ok: true, status: 200, json: async () => ({ conflicts: [] }) }))
+
+    const wrapper = mount(BookingDialog, {
+      props: {
+        bands,
+        ownBandIds: [1],
+        initialStart: new Date(2026, 8, 9, 19, 0),
+        initialEnd: new Date(2026, 8, 9, 20, 0),
+      },
+    })
+    await flushPromises()
+
+    const personalOption = () =>
+      wrapper.findAll('option').find((o) => o.text() === 'Ingen – personlig øvning')
+
+    expect(personalOption()).toBeDefined()
+
+    await wrapper.findAll('.mode-toggle button')[1]!.trigger('click')
+    await flushPromises()
+
+    expect(personalOption()).toBeDefined()
+  })
+
+  it('a user with no bands can submit a personal ad-hoc booking', async () => {
+    let postedBody: Record<string, unknown> | null = null
+    stubFetch(async (_url: string, init?: RequestInit) => {
+      if (init?.method === 'POST') {
+        postedBody = JSON.parse(init.body as string) as Record<string, unknown>
+        return {
+          ok: true,
+          status: 201,
+          json: async () => ({
+            booking: {
+              source: 'ad_hoc',
+              id: 9,
+              band_id: null,
+              band_name: null,
+              start_time: '2026-09-09 19:00:00',
+              end_time: '2026-09-09 20:00:00',
+              booked_by_user_id: 1,
+              booked_by_user_name: 'Testbruger Et',
+            },
+          }),
+        }
+      }
+      return { ok: true, status: 200, json: async () => ({ conflicts: [] }) }
+    })
+
+    const wrapper = mount(BookingDialog, {
+      props: {
+        bands: [],
+        ownBandIds: [],
+        initialStart: new Date(2026, 8, 9, 19, 0),
+        initialEnd: new Date(2026, 8, 9, 20, 0),
+      },
+    })
+    await flushPromises()
+
+    expect((wrapper.find('button[type="submit"]').element as HTMLButtonElement).disabled).toBe(
+      false,
+    )
+
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+
+    expect(postedBody).toMatchObject({ band_id: null })
+    expect(wrapper.emitted('created')).toHaveLength(1)
+  })
+
+  it('a user with no bands can submit a personal recurring slot', async () => {
+    let postedBody: Record<string, unknown> | null = null
+    stubFetch(async (url: string, init?: RequestInit) => {
+      if (init?.method === 'POST') {
+        postedBody = JSON.parse(init.body as string) as Record<string, unknown>
+        return {
+          ok: true,
+          status: 201,
+          json: async () => ({
+            recurring_slot: {
+              id: 5,
+              band_id: null,
+              band_name: null,
+              day_of_week: 3,
+              start_time: '19:00:00',
+              end_time: '20:00:00',
+              week_parity: 'all',
+              start_date: '2026-09-09',
+              end_date: null,
+              booked_by_user_id: 1,
+              booked_by_user_name: 'Testbruger Et',
+            },
+          }),
+        }
+      }
+      expect(url).toBeDefined()
+      return { ok: true, status: 200, json: async () => ({ conflicts: [] }) }
+    })
+
+    const wrapper = mount(BookingDialog, {
+      props: {
+        bands: [],
+        ownBandIds: [],
+        initialStart: new Date(2026, 8, 9, 19, 0),
+        initialEnd: new Date(2026, 8, 9, 20, 0),
+      },
+    })
+    await flushPromises()
+
+    await wrapper.findAll('.mode-toggle button')[1]!.trigger('click')
+    await flushPromises()
+
+    expect((wrapper.find('button[type="submit"]').element as HTMLButtonElement).disabled).toBe(
+      false,
+    )
+
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+
+    expect(postedBody).toMatchObject({ band_id: null })
+    expect(wrapper.emitted('recurring-slot-created')).toHaveLength(1)
+  })
+
+  it('names the booker in the conflict list for a personal occurrence', async () => {
+    stubFetch(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        conflicts: [
+          {
+            source: 'ad_hoc',
+            id: 1,
+            band_id: null,
+            band_name: null,
+            start_time: '2026-09-09 19:00:00',
+            end_time: '2026-09-09 21:00:00',
+            booked_by_user_id: 1,
+            booked_by_user_name: 'Testbruger Et',
+          },
+        ],
+      }),
+    }))
+
+    const wrapper = mount(BookingDialog, {
+      props: {
+        bands,
+        ownBandIds: [1],
+        initialStart: new Date(2026, 8, 9, 19, 0),
+        initialEnd: new Date(2026, 8, 9, 20, 0),
+      },
+    })
+    await flushPromises()
+
+    const alert = wrapper.find('[role="alert"]').text()
+    expect(alert).toContain('Testbruger Et')
+    expect(alert).not.toContain('Ukendt band')
+    expect((wrapper.find('button[type="submit"]').element as HTMLButtonElement).disabled).toBe(true)
+  })
+
   it('shows a recurring pattern conflict and hard-disables Book', async () => {
     stubFetch(async () => ({
       ok: true,

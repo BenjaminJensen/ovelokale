@@ -78,8 +78,8 @@ test('rejects a recurring slot that conflicts with an existing ad-hoc booking on
 });
 
 test('rejects a recurring slot that conflicts with an existing recurring slot', function () {
-    db()->exec("INSERT INTO recurring_slots (band_id, day_of_week, start_time, end_time, week_parity, start_date)
-        VALUES (2, 2, '18:00:00', '20:00:00', 'all', '2020-01-01')");
+    db()->exec("INSERT INTO recurring_slots (band_id, booked_by_user_id, day_of_week, start_time, end_time, week_parity, start_date)
+        VALUES (2, 1, 2, '18:00:00', '20:00:00', 'all', '2020-01-01')");
 
     $result = RecurringSlotController::store([
         'band_id' => 1,
@@ -94,8 +94,8 @@ test('rejects a recurring slot that conflicts with an existing recurring slot', 
 });
 
 test('allows two recurring slots on opposite fixed parities at the same day/time (per the domain glossary)', function () {
-    db()->exec("INSERT INTO recurring_slots (band_id, day_of_week, start_time, end_time, week_parity, start_date)
-        VALUES (2, 2, '18:00:00', '20:00:00', 'even', '2020-01-01')");
+    db()->exec("INSERT INTO recurring_slots (band_id, booked_by_user_id, day_of_week, start_time, end_time, week_parity, start_date)
+        VALUES (2, 1, 2, '18:00:00', '20:00:00', 'even', '2020-01-01')");
 
     $result = RecurringSlotController::store([
         'band_id' => 1,
@@ -109,7 +109,7 @@ test('allows two recurring slots on opposite fixed parities at the same day/time
     expect(recurringSlotCount())->toBe(2);
 });
 
-test('rejects a missing band_id', function () {
+test('creates a personal recurring slot attributed to the stubbed current user', function () {
     $result = RecurringSlotController::store([
         'start_date' => '2026-09-08',
         'start_time' => '18:00',
@@ -117,7 +117,72 @@ test('rejects a missing band_id', function () {
         'week_parity' => 'all',
     ]);
 
+    expect($result['status'])->toBe(201);
+    expect($result['body']['recurring_slot'])->toMatchArray([
+        'band_id' => null,
+        'band_name' => null,
+        'day_of_week' => 2,
+        'booked_by_user_id' => 1,
+        'booked_by_user_name' => 'Stub User',
+    ]);
+
+    $statement = db()->query('SELECT * FROM recurring_slots');
+
+    if ($statement === false) {
+        throw new RuntimeException('Query failed.');
+    }
+
+    $row = $statement->fetch(PDO::FETCH_ASSOC);
+    expect($row)->not->toBeFalse();
+    expect($row['band_id'])->toBeNull();
+    expect((int) $row['booked_by_user_id'])->toBe(1);
+});
+
+test('creates a personal recurring slot when band_id is explicitly null', function () {
+    $result = RecurringSlotController::store([
+        'band_id' => null,
+        'start_date' => '2026-09-08',
+        'start_time' => '18:00',
+        'end_time' => '20:00',
+        'week_parity' => 'all',
+    ]);
+
+    expect($result['status'])->toBe(201);
+    expect($result['body']['recurring_slot'])->toMatchArray([
+        'band_id' => null,
+        'booked_by_user_id' => 1,
+    ]);
+    expect(recurringSlotCount())->toBe(1);
+});
+
+test('rejects a personal recurring slot that conflicts with an existing band occurrence', function () {
+    db()->exec("INSERT INTO recurring_slots (band_id, booked_by_user_id, day_of_week, start_time, end_time, week_parity, start_date)
+        VALUES (2, 1, 2, '18:00:00', '20:00:00', 'all', '2020-01-01')");
+
+    $result = RecurringSlotController::store([
+        'start_date' => '2026-09-08',
+        'start_time' => '19:00',
+        'end_time' => '21:00',
+        'week_parity' => 'odd',
+    ]);
+
+    expect($result['status'])->toBe(409);
+    expect($result['body']['conflicts'])->toHaveCount(1);
+    expect($result['body']['conflicts'][0])->toMatchArray(['band_id' => 2]);
+    expect(recurringSlotCount())->toBe(1);
+});
+
+test('rejects a non-numeric band_id', function () {
+    $result = RecurringSlotController::store([
+        'band_id' => 'not-a-band',
+        'start_date' => '2026-09-08',
+        'start_time' => '18:00',
+        'end_time' => '20:00',
+        'week_parity' => 'all',
+    ]);
+
     expect($result['status'])->toBe(400);
+    expect(recurringSlotCount())->toBe(0);
 });
 
 test('rejects a band_id that does not exist', function () {
