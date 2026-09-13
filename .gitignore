@@ -3,3 +3,6 @@ node_modules/
 vendor/
 frontend/dist/
 .php-cs-fixer.cache
+
+# Local ticket plans and scratch tickets, per the plan-ticket/to-tickets skills
+.scratch/
