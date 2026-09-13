@@ -342,9 +342,14 @@ async function submit(): Promise<void> {
   width: 320px;
   max-width: calc(100vw - 32px);
   box-shadow: 0 12px 32px rgb(0 0 0 / 20%);
+  /* A column with one scrolling child, so a tall form never pushes "Book" off screen. */
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100dvh - 32px);
 }
 
 .dialog-head {
+  flex: none;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -363,6 +368,8 @@ async function submit(): Promise<void> {
   flex-direction: column;
   gap: 10px;
   padding: 14px;
+  overflow-y: auto;
+  min-height: 0;
 }
 
 .mode-toggle {
@@ -482,5 +489,60 @@ button:disabled {
   font-size: 18px;
   line-height: 1;
   padding: 2px 6px;
+}
+
+/*
+ * Phone: a bottom sheet. Mirrors PHONE_QUERY in
+ * src/composables/useIsPhone.ts — change the two together.
+ */
+@media (max-width: 639px) {
+  .overlay {
+    align-items: flex-end;
+  }
+
+  .dialog {
+    width: 100%;
+    max-width: none;
+    max-height: 90dvh;
+    border-width: 1px 0 0;
+    border-radius: 12px 12px 0 0;
+  }
+
+  .dialog-head h2 {
+    font-size: 17px;
+  }
+
+  /* Anything under 16px makes iOS Safari zoom the page when the field takes focus. */
+  .field select,
+  .field input {
+    font-size: 16px;
+    padding: 9px 8px;
+  }
+
+  .mode-toggle button {
+    font-size: 14px;
+    min-height: 44px;
+  }
+
+  /* Pinned to the bottom of the scrolling form, within thumb reach. */
+  .dialog-actions {
+    position: sticky;
+    bottom: -14px;
+    margin: 0 -14px -14px;
+    padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
+    background: #fff;
+    border-top: 1px solid var(--line);
+  }
+
+  .dialog-actions button {
+    min-height: 44px;
+    flex: 1;
+  }
+
+  .icon {
+    min-width: 44px;
+    min-height: 44px;
+    font-size: 22px;
+  }
 }
 </style>

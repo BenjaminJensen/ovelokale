@@ -1,0 +1,7 @@
+# One phone breakpoint, collapsing the week view to a single day
+
+The calendar has exactly one breakpoint, 639px: below it is a phone, at or above it every viewport gets the same layout. Below it the week view renders a *single* day column with the weekday strip turned into a day picker, the toolbar's `‹`/`›` step by one day, and the booking dialog becomes a bottom sheet. The threshold is duplicated in `PHONE_QUERY` (`frontend/src/composables/useIsPhone.ts`) and in `@media (max-width: 639px)` blocks in `App.vue`, `RehearsalCalendar.vue` and `BookingDialog.vue` — CSS cannot read a TypeScript constant, so those four have to be changed together.
+
+We considered a phone/tablet/desktop tier system and rejected it: an iPad in portrait is 768px, which leaves about 100px per day column — tight but legible — so a tablet tier would double the CSS and the e2e matrix to serve a viewport that already works. `frontend/e2e/responsive.spec.ts` runs the core journey at 390, 820 and 1440px to keep that claim honest.
+
+We also considered keeping seven columns on a phone behind a horizontal scroll, and replacing the grid with an agenda list. Both were rejected for the same reason: booking happens by tapping an empty hour in the grid, so a ~43px-wide column makes the primary action unusable, and a list removes the grid that makes free time visible at a glance. Collapsing to one day keeps the gesture identical at every size, at the cost of a view whose initial state depends on viewport width — a phone opens on the day view, a laptop on the month.
